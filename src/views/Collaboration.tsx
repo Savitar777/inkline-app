@@ -13,7 +13,7 @@ import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
 import { isSupabaseConfigured } from '../lib/supabase'
-import { sendMessage, inviteMember, uploadPanelArtwork, fetchCollaborators } from '../services/projectService'
+import { sendMessage, inviteMember, uploadPanelArtwork, fetchCollaborators, updateThreadStatus } from '../services/projectService'
 import type { Collaborator } from '../services/projectService'
 import type { Thread, Message, Panel } from '../types'
 
@@ -21,7 +21,13 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.R
   submitted: { label: 'Submitted', color: 'text-status-submitted bg-status-submitted/10 border-status-submitted/30', icon: <Send size={10} /> },
   in_progress: { label: 'In Progress', color: 'text-status-progress bg-status-progress/10 border-status-progress/30', icon: <Clock size={10} /> },
   draft_received: { label: 'Draft Received', color: 'text-status-draft bg-status-draft/10 border-status-draft/30', icon: <Palette size={10} /> },
+  changes_requested: { label: 'Changes Requested', color: 'text-red-400 bg-red-400/10 border-red-400/30', icon: <Clock size={10} /> },
   approved: { label: 'Approved', color: 'text-status-approved bg-status-approved/10 border-status-approved/30', icon: <CheckCircle2 size={10} /> },
+}
+
+function isUrl(str: string | undefined): boolean {
+  if (!str) return false
+  return str.startsWith('http://') || str.startsWith('https://')
 }
 
 const MOCK_COLLABORATORS = [
@@ -99,9 +105,14 @@ export default function Collaboration() {
         if (pan && activeEpisode) {
           updatePanel(activeEpisode.id, pan.pageId, pan.id, { assetUrl: result.url, status: 'draft_received' })
         }
-        // Send notification message in thread
+        // Send notification message in thread and update thread status
         const panLabel = pan ? `P${pan.pageNumber}/Panel ${pan.number}` : 'a panel'
         await sendMessage(activeThread, user.id, `Uploaded draft artwork for ${panLabel}`, result.url)
+        // Update thread status to draft_received
+        const epThread = episodeThreads.find(t => t.id === activeThread)
+        if (epThread && epThread.status !== 'approved') {
+          updateThreadStatus(activeThread, 'draft_received')
+        }
       }
     } else {
       // Offline mode: append locally
@@ -152,16 +163,24 @@ export default function Collaboration() {
         { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${activeThread}` },
         payload => {
           const row = payload.new as any
+          // Deduplicate: skip if this message was sent by the current user (already in state)
+          if (row.sender_id === user.id) return
+          // Look up sender name from collaborators list
+          const senderName = collaborators.find(c => c.id === row.sender_id)?.name ?? row.sender_id?.slice(0, 8)
           const msg: Message = {
             id: row.id,
-            sender: row.sender_id === user.id ? 'writer' : 'artist',
-            name: profile?.name ?? row.sender_id,
+            sender: 'artist',
+            name: senderName,
             text: row.text ?? undefined,
             image: !!row.attachment_url,
             imageLabel: row.attachment_url ?? undefined,
             timestamp: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }
-          setLiveMessages(prev => [...prev, msg])
+          setLiveMessages(prev => {
+            // Extra safety: don't add if already present
+            if (prev.some(m => m.id === row.id)) return prev
+            return [...prev, msg]
+          })
         },
       )
       .subscribe()
@@ -205,8 +224,16 @@ export default function Collaboration() {
     setInputText('')
 
     if (user && activeThread) {
-      // Online mode — send via Supabase (real-time will add it to liveMessages)
-      await sendMessage(activeThread, user.id, text)
+      // Online mode — send via Supabase, add to local state immediately (realtime skips own messages)
+      const msgId = await sendMessage(activeThread, user.id, text)
+      const localMsg: Message = {
+        id: msgId ?? `${Date.now()}`,
+        sender: 'writer',
+        name: profile?.name ?? 'You',
+        text,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+      setLiveMessages(prev => [...prev, localMsg])
     } else {
       // Offline mode — append locally
       const msg: Message = {
@@ -375,19 +402,26 @@ export default function Collaboration() {
                 )}
                 {msg.image && (
                   <div className="mt-2 rounded-lg border border-ink-border bg-ink-panel overflow-hidden max-w-md">
-                    {/* Mock image placeholder */}
-                    <div className="h-48 bg-gradient-to-br from-ink-muted/30 to-ink-panel flex items-center justify-center relative">
-                      <div className="absolute inset-0 opacity-10" style={{
-                        backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212,168,67,0.1) 10px, rgba(212,168,67,0.1) 11px)',
-                      }} />
-                      <div className="flex flex-col items-center gap-2 relative z-10">
-                        <Image size={24} className="text-ink-muted" />
-                        <span className="text-xs text-ink-muted font-sans">Draft artwork</span>
+                    {isUrl(msg.imageLabel) ? (
+                      <img src={msg.imageLabel} alt="Draft artwork" className="w-full max-h-64 object-contain bg-ink-panel" />
+                    ) : (
+                      <div className="h-48 bg-gradient-to-br from-ink-muted/30 to-ink-panel flex items-center justify-center relative">
+                        <div className="absolute inset-0 opacity-10" style={{
+                          backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, rgba(212,168,67,0.1) 10px, rgba(212,168,67,0.1) 11px)',
+                        }} />
+                        <div className="flex flex-col items-center gap-2 relative z-10">
+                          <Image size={24} className="text-ink-muted" />
+                          <span className="text-xs text-ink-muted font-sans">Draft artwork</span>
+                        </div>
                       </div>
-                    </div>
-                    <div className="px-3 py-2 border-t border-ink-border">
-                      <span className="text-xs text-ink-text font-sans">{msg.imageLabel}</span>
-                    </div>
+                    )}
+                    {msg.imageLabel && (
+                      <div className="px-3 py-2 border-t border-ink-border">
+                        <span className="text-xs text-ink-text font-sans truncate block">
+                          {isUrl(msg.imageLabel) ? 'Uploaded artwork' : msg.imageLabel}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

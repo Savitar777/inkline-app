@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import {
   Download,
   Check,
@@ -12,11 +12,15 @@ import {
   FileDown,
   ChevronDown,
   X,
+  FileText,
 } from '../icons'
-import FormatPreview from '../components/FormatPreview'
+import AssemblyPreview from '../components/AssemblyPreview'
+import LetteringOverlay, { generateBubblesFromContent, type BubbleData, type BubbleFont } from '../components/LetteringOverlay'
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
-import { sendMessage } from '../services/projectService'
+import { sendMessage, updateThreadStatus } from '../services/projectService'
+import { exportPDF, exportZIP, exportSinglePNG, type ExportOptions } from '../services/exportService'
+import { getFormatSpec } from '../lib/assemblyEngine'
 import type { PanelStatus } from '../types'
 
 /* ─── Types ─── */
@@ -40,7 +44,11 @@ const formats: { id: Format; label: string; desc: string; icon: React.ReactNode;
   { id: 'comic', label: 'Comic', desc: 'Western format, page grid', icon: <Monitor size={18} />, specs: '6.625×10.25" · LTR · CMYK' },
 ]
 
-const exportFormats = ['PDF', 'PNG Sequence', 'PSD Layers', 'TIFF (Print)']
+const exportFormats = [
+  { id: 'pdf', label: 'PDF (All Pages)', icon: <FileDown size={13} /> },
+  { id: 'png', label: 'PNG (Single Image)', icon: <Image size={13} /> },
+  { id: 'zip', label: 'ZIP (PNG Sequence)', icon: <Download size={13} /> },
+]
 
 /* ─── Component ─── */
 
@@ -57,8 +65,53 @@ export default function CompileExport() {
   const [exportOpen, setExportOpen] = useState(false)
   const [changesNote, setChangesNote] = useState<Record<string, string>>({})
   const [showChangesFor, setShowChangesFor] = useState<string | null>(null)
+  const [showLettering, setShowLettering] = useState(false)
+  const [bubbles, setBubbles] = useState<BubbleData[]>([])
+  const [bubbleFont, setBubbleFont] = useState<BubbleFont>('sans')
+  const [dpi, setDpi] = useState(72)
+  const [exporting, setExporting] = useState(false)
+  const [previewScale, setPreviewScale] = useState(0.5)
+  const previewRef = useRef<HTMLDivElement>(null)
 
   const episode = project.episodes.find(e => e.id === activeEpisodeId)
+
+  const spec = useMemo(() => getFormatSpec(selectedFormat), [selectedFormat])
+
+  const handleExport = useCallback(async (type: string) => {
+    setExportOpen(false)
+    if (!previewRef.current || !episode) return
+    setExporting(true)
+    const opts: ExportOptions = {
+      format: selectedFormat,
+      dpi,
+      colorProfile: spec.colorProfile,
+      title: project.title,
+      episodeTitle: episode.title,
+    }
+    try {
+      if (type === 'pdf') await exportPDF(previewRef.current, opts)
+      else if (type === 'png') await exportSinglePNG(previewRef.current, opts)
+      else if (type === 'zip') await exportZIP(previewRef.current, opts)
+    } catch (e) {
+      console.error('Export failed:', e)
+    }
+    setExporting(false)
+  }, [selectedFormat, dpi, spec, project.title, episode])
+
+  const initLettering = useCallback(() => {
+    if (!episode) return
+    const generated = generateBubblesFromContent(
+      episode.pages.map(pg => ({
+        id: pg.id,
+        number: pg.number,
+        panels: pg.panels.map(pan => ({ id: pan.id, number: pan.number, content: pan.content })),
+      })),
+      spec.widthPx,
+      spec.heightPx ?? 1000,
+    )
+    setBubbles(generated)
+    setShowLettering(true)
+  }, [episode, spec])
 
   const panels: PanelThumb[] = episode
     ? episode.pages.flatMap(pg =>
@@ -85,6 +138,16 @@ export default function CompileExport() {
   const approve = (panelId: string, pageId: string) => {
     if (!episode) return
     updatePanel(episode.id, pageId, panelId, { status: 'approved' as PanelStatus })
+
+    // Check if ALL episode panels are now approved (after this update)
+    const epThread = project.threads.find(t => t.episodeId === episode.id)
+    if (epThread) {
+      const allPanels = episode.pages.flatMap(pg => pg.panels)
+      const otherAllApproved = allPanels.every(p => p.id === panelId || p.status === 'approved')
+      if (otherAllApproved) {
+        updateThreadStatus(epThread.id, 'approved')
+      }
+    }
   }
 
   const requestChanges = async (panelId: string, pageId: string) => {
@@ -93,13 +156,15 @@ export default function CompileExport() {
 
     // Send the changes note as a message in the episode's thread
     const note = changesNote[panelId]?.trim()
-    if (note && user) {
-      const epThread = project.threads.find(t => t.episodeId === episode.id)
-      if (epThread) {
-        const pan = panels.find(p => p.id === panelId)
-        const label = pan ? `P${pan.page}/Panel ${pan.panel}` : 'a panel'
-        await sendMessage(epThread.id, user.id, `Changes requested for ${label}: ${note}`)
-      }
+    const epThread = project.threads.find(t => t.episodeId === episode.id)
+    if (note && user && epThread) {
+      const pan = panels.find(p => p.id === panelId)
+      const label = pan ? `P${pan.page}/Panel ${pan.panel}` : 'a panel'
+      await sendMessage(epThread.id, user.id, `Changes requested for ${label}: ${note}`)
+    }
+    // Thread goes back to in_progress when changes are requested
+    if (epThread) {
+      updateThreadStatus(epThread.id, 'in_progress')
     }
     setChangesNote(prev => { const n = { ...prev }; delete n[panelId]; return n })
     setShowChangesFor(null)
@@ -145,12 +210,13 @@ export default function CompileExport() {
                   <div className="absolute right-0 top-full mt-1 w-48 bg-ink-panel border border-ink-border rounded-lg shadow-xl z-10 py-1">
                     {exportFormats.map((fmt) => (
                       <button
-                        key={fmt}
+                        key={fmt.id}
                         className="w-full text-left px-4 py-2 text-sm font-sans text-ink-text hover:text-ink-light hover:bg-ink-dark/50 transition-colors flex items-center gap-2"
-                        onClick={() => setExportOpen(false)}
+                        onClick={() => handleExport(fmt.id)}
+                        disabled={exporting}
                       >
-                        <FileDown size={13} className="text-ink-muted" />
-                        {fmt}
+                        <span className="text-ink-muted">{fmt.icon}</span>
+                        {fmt.label}
                       </button>
                     ))}
                   </div>
@@ -190,10 +256,89 @@ export default function CompileExport() {
 
           {/* Layout Preview */}
           <div className="px-6 py-5 border-b border-ink-border">
-            <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium block mb-4">Layout Preview</span>
-            <div className="flex items-center justify-center py-6 bg-ink-panel rounded-lg border border-ink-border">
-              <FormatPreview format={selectedFormat} />
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Layout Preview</span>
+              <div className="flex items-center gap-3">
+                {/* Zoom */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] text-ink-muted font-sans">Zoom</span>
+                  <input
+                    type="range"
+                    min={0.2}
+                    max={1}
+                    step={0.05}
+                    value={previewScale}
+                    onChange={e => setPreviewScale(Number(e.target.value))}
+                    className="w-20 accent-ink-gold h-1"
+                  />
+                  <span className="text-[10px] text-ink-muted font-mono w-8">{Math.round(previewScale * 100)}%</span>
+                </div>
+                {/* DPI */}
+                <select
+                  value={dpi}
+                  onChange={e => setDpi(Number(e.target.value))}
+                  className="bg-ink-panel border border-ink-border rounded px-2 py-1 text-[10px] font-mono text-ink-text outline-none"
+                >
+                  <option value={72}>72 DPI (Web)</option>
+                  <option value={150}>150 DPI</option>
+                  <option value={300}>300 DPI (Print)</option>
+                </select>
+                {/* Lettering toggle */}
+                <button
+                  onClick={() => showLettering ? setShowLettering(false) : initLettering()}
+                  className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-sans border transition-colors ${
+                    showLettering
+                      ? 'bg-ink-gold/10 text-ink-gold border-ink-gold/30'
+                      : 'text-ink-muted border-ink-border hover:text-ink-text'
+                  }`}
+                >
+                  <FileText size={10} />
+                  Lettering {showLettering ? 'ON' : 'OFF'}
+                </button>
+                {showLettering && (
+                  <select
+                    value={bubbleFont}
+                    onChange={e => setBubbleFont(e.target.value as BubbleFont)}
+                    className="bg-ink-panel border border-ink-border rounded px-2 py-1 text-[10px] font-mono text-ink-text outline-none"
+                  >
+                    <option value="sans">Sans-Serif</option>
+                    <option value="serif">Serif</option>
+                    <option value="mono">Monospace</option>
+                    <option value="comic">Comic</option>
+                  </select>
+                )}
+              </div>
             </div>
+            <div className="overflow-auto max-h-[500px] bg-ink-panel rounded-lg border border-ink-border p-4 flex justify-center">
+              <div className="relative" ref={previewRef}>
+                {episode ? (
+                  <>
+                    <AssemblyPreview
+                      pages={episode.pages}
+                      format={selectedFormat}
+                      scale={previewScale}
+                      showLettering={false}
+                    />
+                    {showLettering && (
+                      <LetteringOverlay
+                        bubbles={bubbles}
+                        onChange={setBubbles}
+                        scale={previewScale}
+                        font={bubbleFont}
+                        containerRef={previewRef}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <div className="py-12 text-center text-ink-muted text-sm font-sans">No episode selected</div>
+                )}
+              </div>
+            </div>
+            {exporting && (
+              <div className="mt-2 text-center">
+                <span className="text-xs text-ink-gold font-sans animate-pulse">Exporting…</span>
+              </div>
+            )}
           </div>
 
           {/* Panel Grid */}
