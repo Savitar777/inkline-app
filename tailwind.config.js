@@ -12,7 +12,7 @@ export default {
           dark: '#141414',
           panel: '#1A1A1A',
           border: '#2A2A2A',
-          muted: '#3A3A3A',
+          muted: '#555555',
           text: '#8A8A8A',
           light: '#F5F0E8',
           gold: '#D4A843',

@@ -49,3 +49,8 @@ export const Monitor = (p: IconProps) => <I2 {...p} paths={["M20 3H4a2 2 0 0 0-2
 export const Smartphone = (p: IconProps) => <I2 {...p} paths={["M17 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2z", "M12 18h.01"]} />
 export const ScrollText = (p: IconProps) => <I2 {...p} paths={["M8 21h12a2 2 0 0 0 2-2v-2H10v2a2 2 0 1 1-4 0V5a2 2 0 1 0-4 0v3h4", "M19 3H8a2 2 0 0 0-2 2v14", "M12 8h8", "M12 12h8", "M12 16h4"]} />
 export const FileDown = (p: IconProps) => <I2 {...p} paths={["M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z", "M14 2v4a2 2 0 0 0 2 2h4", "M12 18v-6", "m9 15 3 3 3-3"]} />
+export const Trash2 = (p: IconProps) => <I2 {...p} paths={["M3 6h18", "M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6", "M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2", "M10 11v6", "M14 11v6"]} />
+export const X = (p: IconProps) => <I2 {...p} paths={["M18 6 6 18", "m6 6 12 12"]} />
+export const Pencil = (p: IconProps) => <I2 {...p} paths={["M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z", "m15 5 4 4"]} />
+export const GripVertical = (p: IconProps) => <I2 {...p} paths={["M9 5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M9 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M9 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M15 5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M15 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M15 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"]} />
+export const Upload = (p: IconProps) => <I2 {...p} paths={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "m17 8-5-5-5 5", "M12 3v12"]} />

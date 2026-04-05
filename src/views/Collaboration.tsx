@@ -1,37 +1,16 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import {
   Send,
   Paperclip,
   Image,
-  Circle,
   CheckCircle2,
   Clock,
   Palette,
   FileText,
   ChevronRight,
 } from '../icons'
-
-/* ─── Types & Mock Data ─── */
-
-interface Message {
-  id: string
-  sender: 'writer' | 'artist'
-  name: string
-  text?: string
-  image?: boolean
-  imageLabel?: string
-  timestamp: string
-}
-
-interface Thread {
-  id: string
-  label: string
-  episode: number
-  pageRange: string
-  status: 'submitted' | 'in_progress' | 'draft_received' | 'approved'
-  unread: number
-  messages: Message[]
-}
+import { useProject } from '../context/ProjectContext'
+import type { Thread } from '../types'
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   submitted: { label: 'Submitted', color: 'text-status-submitted bg-status-submitted/10 border-status-submitted/30', icon: <Send size={10} /> },
@@ -40,81 +19,43 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.R
   approved: { label: 'Approved', color: 'text-status-approved bg-status-approved/10 border-status-approved/30', icon: <CheckCircle2 size={10} /> },
 }
 
-const threads: Thread[] = [
-  {
-    id: 't1',
-    label: 'EP3 — The Offer',
-    episode: 3,
-    pageRange: 'Pages 1–2',
-    status: 'draft_received',
-    unread: 2,
-    messages: [
-      { id: 'm1', sender: 'writer', name: 'Henry', text: 'Pages 1–2 are ready. The key beat: Mira entering the Helix building should feel massive — she\'s tiny against it. Panel 1 is the most important panel in the episode.', timestamp: '10:32 AM' },
-      { id: 'm2', sender: 'artist', name: 'Kai', text: 'Got it. Going wide on panel 1 with heavy vertical exaggeration on the tower. Quick question — do you want the overcast sky to feel oppressive or just muted?', timestamp: '11:15 AM' },
-      { id: 'm3', sender: 'writer', name: 'Henry', text: 'Oppressive. Like the sky is pressing down. Think brutalist atmosphere.', timestamp: '11:18 AM' },
-      { id: 'm4', sender: 'artist', name: 'Kai', text: 'Perfect. Here\'s the rough for Page 1 panels 1-2:', timestamp: '2:45 PM' },
-      { id: 'm5', sender: 'artist', name: 'Kai', image: true, imageLabel: 'Page 1 — Panels 1-2 Draft', timestamp: '2:45 PM' },
-      { id: 'm6', sender: 'artist', name: 'Kai', text: 'The lobby scene in panel 2 — I pushed the reflections harder to make it feel sterile. Let me know if this reads right.', timestamp: '2:47 PM' },
-      { id: 'm7', sender: 'artist', name: 'Kai', image: true, imageLabel: 'Page 1 — Panels 3-4 Draft', timestamp: '3:12 PM' },
-      { id: 'm8', sender: 'writer', name: 'Henry', text: 'This is strong. Panel 1 nails it — exactly the scale I wanted. Panel 2 lobby reflections are great. One note: in panel 4 (boardroom), Cole needs to feel more relaxed. Right now he looks too stiff. He should own the room.', timestamp: '4:01 PM' },
-    ],
-  },
-  {
-    id: 't2',
-    label: 'EP2 — Old Ghosts',
-    episode: 2,
-    pageRange: 'Pages 1–3',
-    status: 'approved',
-    unread: 0,
-    messages: [
-      { id: 'm9', sender: 'writer', name: 'Henry', text: 'All pages approved. Great work on the flashback tone.', timestamp: 'Mar 28' },
-    ],
-  },
-  {
-    id: 't3',
-    label: 'EP1 — The Signal',
-    episode: 1,
-    pageRange: 'Pages 1–4',
-    status: 'approved',
-    unread: 0,
-    messages: [
-      { id: 'm10', sender: 'writer', name: 'Henry', text: 'Locked. Moving to EP2.', timestamp: 'Mar 22' },
-    ],
-  },
-  {
-    id: 't4',
-    label: 'EP3 — The Offer',
-    episode: 3,
-    pageRange: 'Pages 3–5',
-    status: 'submitted',
-    unread: 0,
-    messages: [
-      { id: 'm11', sender: 'writer', name: 'Henry', text: 'Sending pages 3-5. Cole reveals what\'s in the folder. The tension should escalate with each page.', timestamp: '5:15 PM' },
-    ],
-  },
-]
-
 const collaborators = [
   { name: 'Kai Nakamura', role: 'Lead Artist', status: 'online', avatar: 'K' },
   { name: 'Sora Lin', role: 'Colorist', status: 'away', avatar: 'S' },
   { name: 'Jake Torres', role: 'Letterer', status: 'offline', avatar: 'J' },
 ]
 
-/* ─── Page Tracker ─── */
-
-const pageTracker = [
-  { page: 1, status: 'approved' as const },
-  { page: 2, status: 'draft_received' as const },
-  { page: 3, status: 'submitted' as const },
-  { page: 4, status: 'submitted' as const },
-  { page: 5, status: 'submitted' as const },
-]
-
 /* ─── Component ─── */
 
 export default function Collaboration() {
-  const [activeThread, setActiveThread] = useState('t1')
-  const thread = threads.find((t) => t.id === activeThread)!
+  const { project, activeEpisodeId } = useProject()
+
+  const episodeThreads: Thread[] = activeEpisodeId
+    ? project.threads.filter(t => t.episodeId === activeEpisodeId)
+    : project.threads
+
+  const activeEpisode = project.episodes.find(e => e.id === activeEpisodeId)
+
+  const [activeThread, setActiveThread] = useState<string>(() => episodeThreads[0]?.id ?? '')
+  const [inputText, setInputText] = useState('')
+  // inputText wired to the message input below
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const first = episodeThreads[0]?.id ?? ''
+    setActiveThread(first)
+  }, [activeEpisodeId])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [activeThread])
+
+  const thread = episodeThreads.find(t => t.id === activeThread) ?? null
+
+  const pageTracker = activeEpisode?.pages.map((pg, i) => ({
+    page: pg.number,
+    status: i === 0 ? 'approved' : i === 1 ? 'draft_received' : 'submitted',
+  })) ?? []
 
   return (
     <div className="flex h-full">
@@ -124,7 +65,10 @@ export default function Collaboration() {
           <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Threads</span>
         </div>
         <div className="flex-1 overflow-y-auto">
-          {threads.map((t) => {
+          {episodeThreads.length === 0 && (
+            <p className="px-4 py-6 text-xs text-ink-muted font-sans italic text-center">No threads for this episode yet.</p>
+          )}
+          {episodeThreads.map((t) => {
             const sc = statusConfig[t.status]
             return (
               <button
@@ -158,7 +102,7 @@ export default function Collaboration() {
 
         {/* Page Tracker */}
         <div className="px-4 py-3 border-t border-ink-border">
-          <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">EP3 Page Status</span>
+          <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">{activeEpisode ? `EP${activeEpisode.number} Page Status` : 'Page Status'}</span>
           <div className="flex gap-1.5">
             {pageTracker.map((p) => {
               const colors: Record<string, string> = {
@@ -180,6 +124,13 @@ export default function Collaboration() {
 
       {/* Main — Messages */}
       <div className="flex-1 flex flex-col">
+        {!thread ? (
+          <div className="flex flex-col items-center justify-center h-full text-center">
+            <ChevronRight size={32} className="text-ink-muted mb-3 rotate-90" />
+            <p className="text-sm text-ink-text font-sans">Select a thread to view messages.</p>
+          </div>
+        ) : (
+          <>
         {/* Thread Header */}
         <div className="px-6 py-3 border-b border-ink-border bg-ink-dark/50 flex items-center justify-between">
           <div>
@@ -242,27 +193,32 @@ export default function Collaboration() {
               </div>
             </div>
           ))}
+          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
         <div className="px-6 py-3 border-t border-ink-border bg-ink-dark/50">
           <div className="flex items-center gap-3 bg-ink-panel rounded-lg px-4 py-2.5 border border-ink-border">
-            <button className="text-ink-muted hover:text-ink-text transition-colors">
+            <button aria-label="Attach file" className="text-ink-muted hover:text-ink-text transition-colors">
               <Paperclip size={16} />
             </button>
-            <button className="text-ink-muted hover:text-ink-text transition-colors">
+            <button aria-label="Attach image" className="text-ink-muted hover:text-ink-text transition-colors">
               <Image size={16} />
             </button>
             <input
               type="text"
               placeholder="Type a message..."
+              value={inputText}
+              onChange={e => setInputText(e.target.value)}
               className="flex-1 bg-transparent text-sm font-sans text-ink-light placeholder:text-ink-muted outline-none"
             />
-            <button className="w-7 h-7 rounded-md bg-ink-gold flex items-center justify-center hover:bg-ink-gold-dim transition-colors">
+            <button aria-label="Send message" className="w-7 h-7 rounded-md bg-ink-gold flex items-center justify-center hover:bg-ink-gold-dim transition-colors">
               <Send size={13} className="text-ink-black" />
             </button>
           </div>
         </div>
+          </>
+        )}
       </div>
 
       {/* Right — Collaborators */}

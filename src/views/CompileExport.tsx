@@ -4,7 +4,6 @@ import {
   Check,
   AlertCircle,
   Layers,
-  ArrowRight,
   Monitor,
   Smartphone,
   BookOpen,
@@ -13,6 +12,8 @@ import {
   FileDown,
   ChevronDown,
 } from '../icons'
+import FormatPreview from '../components/FormatPreview'
+import { useProject } from '../context/ProjectContext'
 
 /* ─── Types ─── */
 
@@ -26,7 +27,7 @@ interface PanelThumb {
   label: string
 }
 
-/* ─── Mock Data ─── */
+/* ─── Static Data ─── */
 
 const formats: { id: Format; label: string; desc: string; icon: React.ReactNode; specs: string }[] = [
   { id: 'webtoon', label: 'Webtoon', desc: 'Vertical scroll, single column', icon: <Smartphone size={18} />, specs: '800px wide · Infinite scroll · RGB' },
@@ -35,99 +36,32 @@ const formats: { id: Format; label: string; desc: string; icon: React.ReactNode;
   { id: 'comic', label: 'Comic', desc: 'Western format, page grid', icon: <Monitor size={18} />, specs: '6.625×10.25" · LTR · CMYK' },
 ]
 
-const panels: PanelThumb[] = [
-  { id: 'c1', page: 1, panel: 1, status: 'complete', label: 'Helix exterior — establishing' },
-  { id: 'c2', page: 1, panel: 2, status: 'complete', label: 'Lobby — Mira walks in' },
-  { id: 'c3', page: 1, panel: 3, status: 'complete', label: 'Elevator button close-up' },
-  { id: 'c4', page: 1, panel: 4, status: 'review', label: 'Boardroom — Cole waiting' },
-  { id: 'c5', page: 2, panel: 1, status: 'complete', label: 'Folder slide — Cole\'s hand' },
-  { id: 'c6', page: 2, panel: 2, status: 'missing', label: 'Mira\'s eyes — extreme CU' },
-  { id: 'c7', page: 2, panel: 3, status: 'missing', label: 'Boardroom wide — standoff' },
-]
-
 const exportFormats = ['PDF', 'PNG Sequence', 'PSD Layers', 'TIFF (Print)']
-
-/* ─── Format Preview ─── */
-
-function FormatPreview({ format }: { format: Format }) {
-  if (format === 'webtoon' || format === 'manhwa') {
-    return (
-      <div className="flex flex-col items-center gap-1.5 w-24">
-        {[1, 2, 3, 4, 5].map((i) => (
-          <div
-            key={i}
-            className={`w-full rounded-sm ${
-              i <= 4 ? 'bg-ink-gold/20 border border-ink-gold/30' : 'bg-ink-muted/20 border border-ink-border border-dashed'
-            }`}
-            style={{ height: i === 1 ? 48 : i === 3 ? 28 : 36 }}
-          />
-        ))}
-        <ArrowRight size={12} className="text-ink-muted rotate-90 mt-1" />
-        <span className="text-[9px] text-ink-muted font-mono">scroll ↓</span>
-      </div>
-    )
-  }
-  if (format === 'manga') {
-    return (
-      <div className="flex gap-3">
-        {/* Right page first for RTL */}
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-20 h-28 rounded-sm border border-ink-border bg-ink-panel p-1.5 grid grid-cols-2 grid-rows-3 gap-1">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className={`rounded-sm ${i <= 4 ? 'bg-ink-gold/20 border border-ink-gold/30' : 'bg-ink-muted/20 border border-ink-border border-dashed'}`} />
-            ))}
-          </div>
-          <span className="text-[9px] text-ink-muted font-mono">P2</span>
-        </div>
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-20 h-28 rounded-sm border border-ink-gold/30 bg-ink-panel p-1.5 grid grid-cols-2 grid-rows-3 gap-1">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="rounded-sm bg-ink-gold/20 border border-ink-gold/30" />
-            ))}
-          </div>
-          <span className="text-[9px] text-ink-muted font-mono">P1</span>
-        </div>
-        <div className="flex items-center">
-          <span className="text-[9px] text-ink-muted font-mono">← RTL</span>
-        </div>
-      </div>
-    )
-  }
-  // Comic (Western)
-  return (
-    <div className="flex gap-3">
-      <div className="flex flex-col items-center gap-1">
-        <div className="w-20 h-28 rounded-sm border border-ink-gold/30 bg-ink-panel p-1.5 grid grid-cols-2 grid-rows-3 gap-1">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className="rounded-sm bg-ink-gold/20 border border-ink-gold/30" />
-          ))}
-        </div>
-        <span className="text-[9px] text-ink-muted font-mono">P1</span>
-      </div>
-      <div className="flex flex-col items-center gap-1">
-        <div className="w-20 h-28 rounded-sm border border-ink-border bg-ink-panel p-1.5 grid grid-cols-2 grid-rows-3 gap-1">
-          {[1, 2, 3, 4, 5, 6].map((i) => (
-            <div key={i} className={`rounded-sm ${i <= 4 ? 'bg-ink-gold/20 border border-ink-gold/30' : 'bg-ink-muted/20 border border-ink-border border-dashed'}`} />
-          ))}
-        </div>
-        <span className="text-[9px] text-ink-muted font-mono">P2</span>
-      </div>
-      <div className="flex items-center">
-        <span className="text-[9px] text-ink-muted font-mono">LTR →</span>
-      </div>
-    </div>
-  )
-}
 
 /* ─── Component ─── */
 
 export default function CompileExport() {
+  const { project, activeEpisodeId } = useProject()
   const [selectedFormat, setSelectedFormat] = useState<Format>('webtoon')
   const [exportOpen, setExportOpen] = useState(false)
 
+  const episode = project.episodes.find(e => e.id === activeEpisodeId)
+
+  const panels: PanelThumb[] = episode
+    ? episode.pages.flatMap(pg =>
+        pg.panels.map((pan, idx) => ({
+          id: pan.id,
+          page: pg.number,
+          panel: pan.number,
+          status: (idx === 0 ? 'complete' : idx === 1 ? 'review' : 'missing') as PanelThumb['status'],
+          label: pan.description ? pan.description.slice(0, 60) : `Panel ${pan.number}`,
+        }))
+      )
+    : []
+
   const completeCount = panels.filter((p) => p.status === 'complete').length
   const totalCount = panels.length
-  const percentage = Math.round((completeCount / totalCount) * 100)
+  const percentage = totalCount > 0 ? Math.round((completeCount / totalCount) * 100) : 0
 
   return (
     <div className="flex h-full">
@@ -138,7 +72,9 @@ export default function CompileExport() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="font-serif text-xl text-ink-light">Compile & Export</h2>
-              <p className="text-xs text-ink-text font-sans mt-1">EP3 — The Offer · {totalCount} panels across 2 pages</p>
+              <p className="text-xs text-ink-text font-sans mt-1">
+                {episode ? `EP${episode.number} — ${episode.title} · ` : ''}{totalCount} panel{totalCount !== 1 ? 's' : ''} across {episode?.pages.length ?? 0} page{episode?.pages.length !== 1 ? 's' : ''}
+              </p>
             </div>
             <div className="flex items-center gap-3">
               {/* Export dropdown */}

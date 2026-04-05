@@ -29,11 +29,11 @@ body {
   background: #141414;
 }
 ::-webkit-scrollbar-thumb {
-  background: #2A2A2A;
+  background: #333333;
   border-radius: 3px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #3A3A3A;
+  background: #555555;
 }
 
 /* Custom selection */
