@@ -83,6 +83,102 @@ Three-view prototype (Script Editor, Collaboration, Compile & Export) with dark 
 
 ---
 
+## Security Hardening (Do alongside Phase 2)
+
+**Goal:** Lock down the backend so no user can escalate privileges, spam resources, corrupt other users' data, or generate runaway bills. Every item here was identified in a security audit of the current codebase.
+
+### S1. RLS — Fix Critical Privilege Escalation (CRITICAL)
+- [ ] **Prevent self-modification of `users.role`** — the current `users_update_own` policy lets a user UPDATE any column on their own row, including `role`. Add a trigger to block role changes, or restrict the UPDATE policy to only `name` and `avatar_url`:
+  ```sql
+  create or replace function prevent_role_change()
+  returns trigger language plpgsql as $$
+  begin
+    if new.role is distinct from old.role then
+      raise exception 'Cannot change your own role';
+    end if;
+    return new;
+  end;
+  $$;
+  create trigger trg_prevent_role_change
+    before update on users for each row execute procedure prevent_role_change();
+  ```
+- [ ] Add explicit deny INSERT policy on `users` table (`with check (false)`) — only the `handle_new_user` trigger should create rows
+
+### S2. RLS — Tighten Shared Project Permissions (HIGH)
+- [ ] Split `for all` RLS policies into role-specific policies:
+  - **Writers:** full CRUD on script content (episodes, pages, panels, content_blocks, characters)
+  - **Artists:** READ on script content, WRITE only on `panel_assets` and own messages
+  - **Both:** CRUD on threads/messages scoped to own `sender_id` for writes
+- [ ] On `messages` table, add `sender_id = auth.uid()` to the `USING` clause so members cannot edit/delete each other's messages
+
+### S3. RLS — Harden Security-Definer Functions (MEDIUM)
+- [ ] Add `set search_path = ''` to `is_project_member()` function (already done for `handle_new_user`, missing here)
+- [ ] Restrict `find_user_by_email` RPC: require caller to be a project owner (pass `for_project_id` param and validate ownership), or move to an Edge Function with rate limiting
+
+### S4. Rate Limiting — Add Backend Write Proxy (CRITICAL)
+- [ ] **Create Supabase Edge Functions** to proxy all write operations (episodes, pages, panels, content_blocks, characters, threads, messages) — do NOT let the frontend call Supabase tables directly for inserts/updates/deletes
+- [ ] Enforce per-user rate limits in each Edge Function:
+  - Episodes: max 50 per project
+  - Pages: max 100 per episode
+  - Panels: max 20 per page
+  - Messages: max 60 per thread per hour
+  - Projects: max 10 per user (free tier), unlimited (paid)
+- [ ] Add IP-based rate limiting via Cloudflare or Vercel middleware on auth endpoints (signup, login) to prevent credential stuffing
+- [ ] Rate-limit the `find_user_by_email` RPC (max 10 lookups per minute per user)
+
+### S5. Database-Level Resource Limits (HIGH)
+- [ ] Add Postgres trigger functions to enforce row count caps per parent:
+  ```sql
+  -- Example: limit episodes per project
+  create or replace function check_episode_limit()
+  returns trigger language plpgsql as $$
+  begin
+    if (select count(*) from episodes where project_id = new.project_id) >= 50 then
+      raise exception 'Episode limit reached';
+    end if;
+    return new;
+  end;
+  $$;
+  create trigger trg_episode_limit
+    before insert on episodes for each row execute procedure check_episode_limit();
+  ```
+- [ ] Add similar triggers for pages (100/episode), panels (20/page), messages (1000/thread), content_blocks (50/panel)
+- [ ] Add `text` column length constraints (e.g., `brief` max 5000 chars, `message.text` max 5000 chars) to prevent storage abuse
+
+### S6. Budget Caps & Billing Alerts (HIGH)
+- [ ] Configure Supabase billing alerts in Dashboard for database size, bandwidth, and Realtime usage
+- [ ] Set up a monthly spend cap or alert threshold at 80% of expected budget
+- [ ] When adding any paid third-party service (AI, email, storage), always:
+  1. Set a hard budget cap on the provider (OpenAI spend limit, AWS budget, etc.)
+  2. Proxy through an Edge Function — never expose API keys to the frontend
+  3. Log usage per user for auditing
+
+### S7. Input Validation & Frontend Hardening (MEDIUM)
+- [ ] Add Zod schema validation to `importProject` — validate all fields, enforce max lengths, reject unexpected keys
+- [ ] Sanitize all user-supplied text before rendering (React handles most XSS, but validate on import)
+- [ ] When adding Stripe (Phase 6): subscription status and plan tier must live on a **server-controlled table** that the user has NO write access to — never store billing state on the `users` table
+
+### S8. Future-Proofing for Monetization (Phase 6 prerequisite)
+- [ ] Create a separate `subscriptions` table with RLS that only allows SELECT for the owning user — no INSERT/UPDATE/DELETE from client
+- [ ] All plan-tier checks must happen server-side (Edge Function or Postgres function) — never trust a client-side `plan` field
+- [ ] Rate limit values (daily AI generations, export counts) must be stored in a server-managed `usage` table, not on any user-writable table
+- [ ] When adding AI features: proxy all AI calls through Edge Functions, enforce per-user daily caps, set provider-level spend limits
+
+### Security Priority Order
+
+| Item | Severity | Fix When |
+|------|----------|----------|
+| **S1** Self-writable role | Critical | Immediately — before any production deploy |
+| **S4** No rate limiting | Critical | Phase 2 — when adding the API layer |
+| **S2** Shared project over-permissioning | High | Phase 2 — when refining RLS |
+| **S5** Database resource limits | High | Phase 2 — when finalizing schema |
+| **S6** Billing alerts | High | Phase 2 — when Supabase project goes live |
+| **S3** Security-definer hardening | Medium | Phase 2 — quick fix |
+| **S7** Input validation | Medium | Phase 2 — when replacing mock data |
+| **S8** Monetization safeguards | Medium | Phase 6 — before adding payments |
+
+---
+
 ## Phase 3: Collaboration — The Core Value Prop
 
 **Goal:** The writer→artist handoff loop works end-to-end.

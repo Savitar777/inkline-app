@@ -1,19 +1,15 @@
 import { useState } from 'react'
 import { useAuth } from '../context/AuthContext'
+import { isSupabaseConfigured } from '../lib/supabase'
 import Login from '../views/auth/Login'
 import Signup from '../views/auth/Signup'
-
-const SUPABASE_CONFIGURED = !!(
-  import.meta.env.VITE_SUPABASE_URL &&
-  import.meta.env.VITE_SUPABASE_URL !== 'https://placeholder.supabase.co'
-)
 
 export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const [view, setView] = useState<'login' | 'signup'>('login')
 
   // Offline / demo mode — no Supabase configured, run locally with localStorage
-  if (!SUPABASE_CONFIGURED) return <>{children}</>
+  if (!isSupabaseConfigured) return <>{children}</>
 
   if (loading) {
     return (

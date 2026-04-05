@@ -33,15 +33,17 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
   const [newFormat, setNewFormat] = useState<ProjectFormat>('webtoon')
   const [creating, setCreating] = useState(false)
 
-  const load = async () => {
+  useEffect(() => {
     if (!profile) return
+    let cancelled = false
     setLoading(true)
-    const data = await listProjects(profile.id)
-    setProjects(data as ProjectRow[])
-    setLoading(false)
-  }
-
-  useEffect(() => { load() }, [profile])
+    listProjects(profile.id).then(data => {
+      if (cancelled) return
+      setProjects(data as ProjectRow[])
+      setLoading(false)
+    })
+    return () => { cancelled = true }
+  }, [profile])
 
   const handleCreate = async () => {
     if (!newTitle.trim() || !profile) return

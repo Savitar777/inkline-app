@@ -30,7 +30,8 @@ export default function Signup({ onGoToLogin }: Props) {
     setError(null)
     setLoading(true)
     const err = await signUp(email, password, name, role)
-    if (err) { setError(err); setLoading(false) }
+    setLoading(false)
+    if (err) setError(err)
     else setDone(true)
   }
 

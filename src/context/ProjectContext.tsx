@@ -3,7 +3,7 @@ import type { Project, Episode, Page, Panel, ContentBlock, Character } from '../
 import { defaultProject } from '../data/mockData'
 import * as svc from '../services/projectService'
 
-const genId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
+const genId = () => crypto.randomUUID()
 
 interface ProjectContextType {
   project: Project
@@ -138,11 +138,15 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
     setProject(p => {
       const number = p.episodes.length + 1
       const ep: Episode = { id, number, title: `Episode ${number}`, brief: '', pages: [] }
-      if (projectId) svc.createEpisode(projectId, number)
       return { ...p, episodes: [...p.episodes, ep] }
     })
     setActiveEpisodeId(id)
-  }, [projectId])
+    if (projectId) {
+      // Read episode count from current state to determine the number
+      const number = (project.episodes.length ?? 0) + 1
+      svc.createEpisode(projectId, number, id)
+    }
+  }, [projectId, project.episodes.length])
 
   const updateEpisode = useCallback((episodeId: string, updates: Partial<Pick<Episode, 'title' | 'brief'>>) => {
     setProject(p => ({
@@ -153,10 +157,10 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
   }, [projectId])
 
   const deleteEpisode = useCallback((episodeId: string) => {
-    setProject(p => {
-      const remaining = p.episodes.filter(ep => ep.id !== episodeId)
-      return { ...p, episodes: remaining }
-    })
+    setProject(p => ({
+      ...p,
+      episodes: p.episodes.filter(ep => ep.id !== episodeId),
+    }))
     setActiveEpisodeId(prev => {
       if (prev !== episodeId) return prev
       const remaining = project.episodes.filter(ep => ep.id !== episodeId)
@@ -168,17 +172,22 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
   // ── Page ─────────────────────────────────────────────────────────────────
 
   const addPage = useCallback((episodeId: string) => {
+    const id = genId()
     setProject(p => ({
       ...p,
       episodes: p.episodes.map(ep => {
         if (ep.id !== episodeId) return ep
         const number = ep.pages.length + 1
-        const page: Page = { id: genId(), number, layoutNote: '', panels: [] }
-        if (projectId) svc.createPage(episodeId, number)
+        const page: Page = { id, number, layoutNote: '', panels: [] }
         return { ...ep, pages: [...ep.pages, page] }
       }),
     }))
-  }, [projectId])
+    if (projectId) {
+      const ep = project.episodes.find(e => e.id === episodeId)
+      const number = (ep?.pages.length ?? 0) + 1
+      svc.createPage(episodeId, number, id)
+    }
+  }, [projectId, project.episodes])
 
   const updatePage = useCallback((episodeId: string, pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => {
     setProject(p => ({
@@ -206,6 +215,7 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
   // ── Panel ─────────────────────────────────────────────────────────────────
 
   const addPanel = useCallback((episodeId: string, pageId: string, shot: string) => {
+    const id = genId()
     setProject(p => ({
       ...p,
       episodes: p.episodes.map(ep => {
@@ -215,14 +225,19 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
           pages: ep.pages.map(pg => {
             if (pg.id !== pageId) return pg
             const number = pg.panels.length + 1
-            const panel: Panel = { id: genId(), number, shot, description: '', content: [] }
-            if (projectId) svc.createPanel(pageId, number, shot)
+            const panel: Panel = { id, number, shot, description: '', content: [] }
             return { ...pg, panels: [...pg.panels, panel] }
           }),
         }
       }),
     }))
-  }, [projectId])
+    if (projectId) {
+      const ep = project.episodes.find(e => e.id === episodeId)
+      const pg = ep?.pages.find(p => p.id === pageId)
+      const number = (pg?.panels.length ?? 0) + 1
+      svc.createPanel(pageId, number, shot, id)
+    }
+  }, [projectId, project.episodes])
 
   const updatePanel = useCallback((episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => {
     setProject(p => ({
@@ -262,6 +277,7 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
   // ── Content Block ─────────────────────────────────────────────────────────
 
   const addContentBlock = useCallback((episodeId: string, pageId: string, panelId: string, type: ContentBlock['type']) => {
+    const id = genId()
     setProject(p => ({
       ...p,
       episodes: p.episodes.map(ep => {
@@ -274,8 +290,7 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
               ...pg,
               panels: pg.panels.map(pan => {
                 if (pan.id !== panelId) return pan
-                const block: ContentBlock = { id: genId(), type, text: '' }
-                if (projectId) svc.createContentBlock(panelId, type, pan.content.length)
+                const block: ContentBlock = { id, type, text: '' }
                 return { ...pan, content: [...pan.content, block] }
               }),
             }
@@ -283,7 +298,13 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
         }
       }),
     }))
-  }, [projectId])
+    if (projectId) {
+      const ep = project.episodes.find(e => e.id === episodeId)
+      const pg = ep?.pages.find(p => p.id === pageId)
+      const pan = pg?.panels.find(p => p.id === panelId)
+      svc.createContentBlock(panelId, type, pan?.content.length ?? 0, id)
+    }
+  }, [projectId, project.episodes])
 
   const updateContentBlock = useCallback((
     episodeId: string, pageId: string, panelId: string, blockId: string,
@@ -341,8 +362,9 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
   // ── Character ─────────────────────────────────────────────────────────────
 
   const addCharacter = useCallback((char: Omit<Character, 'id'>) => {
-    setProject(p => ({ ...p, characters: [...p.characters, { id: genId(), ...char }] }))
-    if (projectId) svc.createCharacter(projectId, char)
+    const id = genId()
+    setProject(p => ({ ...p, characters: [...p.characters, { id, ...char }] }))
+    if (projectId) svc.createCharacter(projectId, char, id)
   }, [projectId])
 
   const updateCharacter = useCallback((id: string, updates: Partial<Omit<Character, 'id'>>) => {

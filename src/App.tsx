@@ -21,7 +21,7 @@ function NavBar({
 }: {
   activeView: View
   setActiveView: (v: View) => void
-  onBackToDashboard: () => void
+  onBackToDashboard?: () => void
 }) {
   const { project, setProjectTitle, exportProject, importProject } = useProject()
   const { profile, signOut } = useAuth()
@@ -46,17 +46,23 @@ function NavBar({
   return (
     <header className="flex items-center justify-between px-6 h-14 border-b border-ink-border bg-ink-dark shrink-0">
       <div className="flex items-center gap-4">
-        {/* Back to dashboard */}
-        <button
-          aria-label="Back to projects"
-          onClick={onBackToDashboard}
-          className="flex items-center gap-1.5 text-ink-muted hover:text-ink-text transition-colors"
-        >
-          <ChevronLeft size={14} />
-          <div className="w-6 h-6 rounded bg-ink-gold/20 flex items-center justify-center">
-            <PenLine size={12} className="text-ink-gold" strokeWidth={2.5} />
+        {/* Back to dashboard (hidden in offline mode) */}
+        {onBackToDashboard ? (
+          <button
+            aria-label="Back to projects"
+            onClick={onBackToDashboard}
+            className="flex items-center gap-1.5 text-ink-muted hover:text-ink-text transition-colors"
+          >
+            <ChevronLeft size={14} />
+            <div className="w-6 h-6 rounded bg-ink-gold/20 flex items-center justify-center">
+              <PenLine size={12} className="text-ink-gold" strokeWidth={2.5} />
+            </div>
+          </button>
+        ) : (
+          <div className="w-6 h-6 rounded bg-ink-gold flex items-center justify-center">
+            <PenLine size={12} className="text-ink-black" strokeWidth={2.5} />
           </div>
-        </button>
+        )}
 
         {/* Project title */}
         {editingTitle ? (
@@ -151,7 +157,7 @@ function AppShell() {
     return (
       <ProjectProvider>
         <div className="flex flex-col h-screen bg-ink-black">
-          <NavBar activeView={activeView} setActiveView={setActiveView} onBackToDashboard={() => {}} />
+          <NavBar activeView={activeView} setActiveView={setActiveView} />
           <main className="flex-1 overflow-hidden">
             {activeView === 'editor' && <ScriptEditor />}
             {activeView === 'collab' && <Collaboration />}

@@ -6,6 +6,10 @@ export type ContentBlockType = 'dialogue' | 'caption' | 'sfx'
 export type ThreadStatus = 'submitted' | 'in_progress' | 'draft_received' | 'approved'
 export type AssetStatus = 'draft' | 'approved' | 'rejected'
 
+// NOTE: This file is a hand-written placeholder.
+// Replace it with the output of `supabase gen types typescript` once connected
+// to a real Supabase project for full type-safety.
+
 export interface Database {
   public: {
     Tables: {
@@ -17,8 +21,9 @@ export interface Database {
           role: UserRole
           avatar_url: string | null
           created_at: string
+          updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['users']['Row'], 'created_at'>
+        Insert: Omit<Database['public']['Tables']['users']['Row'], 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['users']['Insert']>
       }
       projects: {
@@ -28,8 +33,9 @@ export interface Database {
           format: ProjectFormat
           owner_id: string
           created_at: string
+          updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['projects']['Row'], 'created_at'>
+        Insert: Omit<Database['public']['Tables']['projects']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['projects']['Insert']>
       }
       project_members: {
@@ -51,8 +57,9 @@ export interface Database {
           title: string
           brief: string
           created_at: string
+          updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['episodes']['Row'], 'created_at'>
+        Insert: Omit<Database['public']['Tables']['episodes']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['episodes']['Insert']>
       }
       pages: {
@@ -62,7 +69,7 @@ export interface Database {
           number: number
           layout_note: string
         }
-        Insert: Database['public']['Tables']['pages']['Row']
+        Insert: Omit<Database['public']['Tables']['pages']['Row'], 'id'>
         Update: Partial<Database['public']['Tables']['pages']['Insert']>
       }
       panels: {
@@ -74,7 +81,7 @@ export interface Database {
           description: string
           order: number
         }
-        Insert: Database['public']['Tables']['panels']['Row']
+        Insert: Omit<Database['public']['Tables']['panels']['Row'], 'id'>
         Update: Partial<Database['public']['Tables']['panels']['Insert']>
       }
       content_blocks: {
@@ -87,7 +94,7 @@ export interface Database {
           text: string
           order: number
         }
-        Insert: Database['public']['Tables']['content_blocks']['Row']
+        Insert: Omit<Database['public']['Tables']['content_blocks']['Row'], 'id'>
         Update: Partial<Database['public']['Tables']['content_blocks']['Insert']>
       }
       characters: {
@@ -96,10 +103,10 @@ export interface Database {
           project_id: string
           name: string
           role: string
-          desc: string
+          description: string
           color: string
         }
-        Insert: Database['public']['Tables']['characters']['Row']
+        Insert: Omit<Database['public']['Tables']['characters']['Row'], 'id'>
         Update: Partial<Database['public']['Tables']['characters']['Insert']>
       }
       threads: {
@@ -111,8 +118,9 @@ export interface Database {
           page_range: string
           status: ThreadStatus
           created_at: string
+          updated_at: string
         }
-        Insert: Omit<Database['public']['Tables']['threads']['Row'], 'created_at'>
+        Insert: Omit<Database['public']['Tables']['threads']['Row'], 'id' | 'created_at' | 'updated_at'>
         Update: Partial<Database['public']['Tables']['threads']['Insert']>
       }
       messages: {
@@ -142,7 +150,22 @@ export interface Database {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
-    Enums: Record<string, never>
+    Functions: {
+      find_user_by_email: {
+        Args: { lookup_email: string }
+        Returns: string | null
+      }
+      is_project_member: {
+        Args: { _project_id: string }
+        Returns: boolean
+      }
+    }
+    Enums: {
+      user_role: UserRole
+      project_format: ProjectFormat
+      content_block_type: ContentBlockType
+      thread_status: ThreadStatus
+      asset_status: AssetStatus
+    }
   }
 }

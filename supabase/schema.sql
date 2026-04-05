@@ -1,12 +1,17 @@
 -- ============================================================
 -- Inkline Schema
 -- Run this in your Supabase SQL editor (Dashboard > SQL Editor)
+--
+-- Structure: enums → tables → indexes → RLS enable → functions → policies
+--            → realtime → triggers → RPCs
 -- ============================================================
 
 -- Enable UUID extension
 create extension if not exists "pgcrypto";
 
--- ─── ENUM TYPES ─────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════
+-- 1. ENUM TYPES
+-- ═══════════════════════════════════════════════════════════════
 
 create type user_role as enum ('writer', 'artist', 'letterer', 'colorist');
 create type project_format as enum ('webtoon', 'manhwa', 'manga', 'comic');
@@ -14,7 +19,9 @@ create type content_block_type as enum ('dialogue', 'caption', 'sfx');
 create type thread_status as enum ('submitted', 'in_progress', 'draft_received', 'approved');
 create type asset_status as enum ('draft', 'approved', 'rejected');
 
--- ─── USERS ──────────────────────────────────────────────────
+-- ═══════════════════════════════════════════════════════════════
+-- 2. TABLES
+-- ═══════════════════════════════════════════════════════════════
 
 create table users (
   id          uuid primary key references auth.users(id) on delete cascade,
@@ -22,30 +29,18 @@ create table users (
   name        text not null,
   role        user_role not null default 'writer',
   avatar_url  text,
-  created_at  timestamptz not null default now()
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
 );
-
-alter table users enable row level security;
-create policy "Users can view their own profile" on users for select using (auth.uid() = id);
-create policy "Users can update their own profile" on users for update using (auth.uid() = id);
-
--- ─── PROJECTS ───────────────────────────────────────────────
 
 create table projects (
   id          uuid primary key default gen_random_uuid(),
   title       text not null,
   format      project_format not null default 'webtoon',
   owner_id    uuid not null references users(id) on delete cascade,
-  created_at  timestamptz not null default now()
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
 );
-
-alter table projects enable row level security;
-create policy "Owner can manage project" on projects for all using (auth.uid() = owner_id);
-create policy "Members can view project" on projects for select using (
-  exists (select 1 from project_members where project_id = projects.id and user_id = auth.uid())
-);
-
--- ─── PROJECT MEMBERS ────────────────────────────────────────
 
 create table project_members (
   id          uuid primary key default gen_random_uuid(),
@@ -56,17 +51,6 @@ create table project_members (
   unique (project_id, user_id)
 );
 
-alter table project_members enable row level security;
-create policy "Owner can manage members" on project_members for all using (
-  exists (select 1 from projects where id = project_members.project_id and owner_id = auth.uid())
-);
-create policy "Members can view members" on project_members for select using (
-  user_id = auth.uid() or
-  exists (select 1 from projects where id = project_members.project_id and owner_id = auth.uid())
-);
-
--- ─── EPISODES ───────────────────────────────────────────────
-
 create table episodes (
   id          uuid primary key default gen_random_uuid(),
   project_id  uuid not null references projects(id) on delete cascade,
@@ -74,20 +58,9 @@ create table episodes (
   title       text not null,
   brief       text not null default '',
   created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
   unique (project_id, number)
 );
-
-alter table episodes enable row level security;
-create policy "Project access for episodes" on episodes for all using (
-  exists (
-    select 1 from projects p
-    left join project_members pm on pm.project_id = p.id
-    where p.id = episodes.project_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
-  )
-);
-
--- ─── PAGES ──────────────────────────────────────────────────
 
 create table pages (
   id          uuid primary key default gen_random_uuid(),
@@ -96,19 +69,6 @@ create table pages (
   layout_note text not null default '',
   unique (episode_id, number)
 );
-
-alter table pages enable row level security;
-create policy "Project access for pages" on pages for all using (
-  exists (
-    select 1 from episodes e
-    join projects p on p.id = e.project_id
-    left join project_members pm on pm.project_id = p.id
-    where e.id = pages.episode_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
-  )
-);
-
--- ─── PANELS ─────────────────────────────────────────────────
 
 create table panels (
   id          uuid primary key default gen_random_uuid(),
@@ -120,65 +80,24 @@ create table panels (
   unique (page_id, number)
 );
 
-alter table panels enable row level security;
-create policy "Project access for panels" on panels for all using (
-  exists (
-    select 1 from pages pg
-    join episodes e on e.id = pg.episode_id
-    join projects p on p.id = e.project_id
-    left join project_members pm on pm.project_id = p.id
-    where pg.id = panels.page_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
-  )
-);
-
--- ─── CONTENT BLOCKS ─────────────────────────────────────────
-
 create table content_blocks (
   id            uuid primary key default gen_random_uuid(),
   panel_id      uuid not null references panels(id) on delete cascade,
   type          content_block_type not null,
-  character     text,
+  "character"   text,
   parenthetical text,
-  text          text not null default '',
+  "text"        text not null default '',
   "order"       int not null default 0
 );
-
-alter table content_blocks enable row level security;
-create policy "Project access for content_blocks" on content_blocks for all using (
-  exists (
-    select 1 from panels pan
-    join pages pg on pg.id = pan.page_id
-    join episodes e on e.id = pg.episode_id
-    join projects p on p.id = e.project_id
-    left join project_members pm on pm.project_id = p.id
-    where pan.id = content_blocks.panel_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
-  )
-);
-
--- ─── CHARACTERS ─────────────────────────────────────────────
 
 create table characters (
   id          uuid primary key default gen_random_uuid(),
   project_id  uuid not null references projects(id) on delete cascade,
   name        text not null,
   role        text not null default '',
-  desc        text not null default '',
+  description text not null default '',
   color       text not null default '#22C55E'
 );
-
-alter table characters enable row level security;
-create policy "Project access for characters" on characters for all using (
-  exists (
-    select 1 from projects p
-    left join project_members pm on pm.project_id = p.id
-    where p.id = characters.project_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
-  )
-);
-
--- ─── THREADS ────────────────────────────────────────────────
 
 create table threads (
   id          uuid primary key default gen_random_uuid(),
@@ -187,42 +106,18 @@ create table threads (
   label       text not null,
   page_range  text not null default '',
   status      thread_status not null default 'submitted',
-  created_at  timestamptz not null default now()
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
 );
-
-alter table threads enable row level security;
-create policy "Project access for threads" on threads for all using (
-  exists (
-    select 1 from projects p
-    left join project_members pm on pm.project_id = p.id
-    where p.id = threads.project_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
-  )
-);
-
--- ─── MESSAGES ───────────────────────────────────────────────
 
 create table messages (
   id              uuid primary key default gen_random_uuid(),
   thread_id       uuid not null references threads(id) on delete cascade,
   sender_id       uuid not null references users(id) on delete cascade,
-  text            text,
+  "text"          text,
   attachment_url  text,
   created_at      timestamptz not null default now()
 );
-
-alter table messages enable row level security;
-create policy "Project access for messages" on messages for all using (
-  exists (
-    select 1 from threads t
-    join projects p on p.id = t.project_id
-    left join project_members pm on pm.project_id = p.id
-    where t.id = messages.thread_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
-  )
-);
-
--- ─── PANEL ASSETS ───────────────────────────────────────────
 
 create table panel_assets (
   id            uuid primary key default gen_random_uuid(),
@@ -234,37 +129,265 @@ create table panel_assets (
   created_at    timestamptz not null default now()
 );
 
-alter table panel_assets enable row level security;
-create policy "Project access for panel_assets" on panel_assets for all using (
-  exists (
-    select 1 from panels pan
-    join pages pg on pg.id = pan.page_id
-    join episodes e on e.id = pg.episode_id
-    join projects p on p.id = e.project_id
-    left join project_members pm on pm.project_id = p.id
-    where pan.id = panel_assets.panel_id
-      and (p.owner_id = auth.uid() or pm.user_id = auth.uid())
+-- ═══════════════════════════════════════════════════════════════
+-- 3. INDEXES
+-- ═══════════════════════════════════════════════════════════════
+
+create index idx_projects_owner    on projects        using btree (owner_id);
+create index idx_pm_project        on project_members using btree (project_id);
+create index idx_pm_user           on project_members using btree (user_id);
+create index idx_episodes_project  on episodes        using btree (project_id);
+create index idx_pages_episode     on pages           using btree (episode_id);
+create index idx_panels_page       on panels          using btree (page_id);
+create index idx_cb_panel          on content_blocks  using btree (panel_id);
+create index idx_chars_project     on characters      using btree (project_id);
+create index idx_threads_project   on threads         using btree (project_id);
+create index idx_threads_episode   on threads         using btree (episode_id);
+create index idx_messages_thread   on messages        using btree (thread_id);
+create index idx_messages_sender   on messages        using btree (sender_id);
+create index idx_pa_panel          on panel_assets    using btree (panel_id);
+
+-- ═══════════════════════════════════════════════════════════════
+-- 4. ENABLE ROW LEVEL SECURITY
+-- ═══════════════════════════════════════════════════════════════
+
+alter table users           enable row level security;
+alter table projects        enable row level security;
+alter table project_members enable row level security;
+alter table episodes        enable row level security;
+alter table pages           enable row level security;
+alter table panels          enable row level security;
+alter table content_blocks  enable row level security;
+alter table characters      enable row level security;
+alter table threads         enable row level security;
+alter table messages        enable row level security;
+alter table panel_assets    enable row level security;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 5. HELPER FUNCTIONS (used by policies below)
+-- ═══════════════════════════════════════════════════════════════
+
+-- Reusable project-membership check for RLS policies
+create or replace function is_project_member(_project_id uuid)
+returns boolean language sql security definer stable as $$
+  select exists (
+    select 1 from projects p
+    left join project_members pm on pm.project_id = p.id and pm.user_id = auth.uid()
+    where p.id = _project_id
+      and (p.owner_id = auth.uid() or pm.user_id is not null)
+  );
+$$;
+
+-- ═══════════════════════════════════════════════════════════════
+-- 6. RLS POLICIES
+-- ═══════════════════════════════════════════════════════════════
+
+-- ── users ──
+create policy "users_select_own"
+  on users for select
+  using ( (select auth.uid()) = id );
+
+create policy "users_select_teammates"
+  on users for select
+  using (
+    exists (
+      select 1 from project_members pm1
+      join project_members pm2 on pm2.project_id = pm1.project_id
+      where pm1.user_id = (select auth.uid())
+        and pm2.user_id = users.id
+    )
+    or exists (
+      select 1 from projects p
+      join project_members pm on pm.project_id = p.id
+      where p.owner_id = (select auth.uid()) and pm.user_id = users.id
+    )
+  );
+
+create policy "users_update_own"
+  on users for update
+  using ( (select auth.uid()) = id );
+
+-- ── projects ──
+create policy "projects_select"
+  on projects for select to authenticated
+  using (
+    owner_id = (select auth.uid())
+    or exists (
+      select 1 from project_members
+      where project_id = projects.id and user_id = (select auth.uid())
+    )
+  );
+
+create policy "projects_insert"
+  on projects for insert to authenticated
+  with check ( owner_id = (select auth.uid()) );
+
+create policy "projects_update"
+  on projects for update to authenticated
+  using ( owner_id = (select auth.uid()) );
+
+create policy "projects_delete"
+  on projects for delete to authenticated
+  using ( owner_id = (select auth.uid()) );
+
+-- ── project_members ──
+create policy "pm_select"
+  on project_members for select to authenticated
+  using (
+    user_id = (select auth.uid())
+    or exists (select 1 from projects where id = project_members.project_id and owner_id = (select auth.uid()))
+  );
+
+create policy "pm_insert"
+  on project_members for insert to authenticated
+  with check (
+    exists (select 1 from projects where id = project_members.project_id and owner_id = (select auth.uid()))
+  );
+
+create policy "pm_update"
+  on project_members for update to authenticated
+  using (
+    exists (select 1 from projects where id = project_members.project_id and owner_id = (select auth.uid()))
+  );
+
+create policy "pm_delete"
+  on project_members for delete to authenticated
+  using (
+    user_id = (select auth.uid())
+    or exists (select 1 from projects where id = project_members.project_id and owner_id = (select auth.uid()))
+  );
+
+-- ── episodes ──
+create policy "episodes_all"
+  on episodes for all to authenticated
+  using ( is_project_member(project_id) )
+  with check ( is_project_member(project_id) );
+
+-- ── pages ──
+create policy "pages_all"
+  on pages for all to authenticated
+  using (
+    exists (
+      select 1 from episodes e
+      where e.id = pages.episode_id and is_project_member(e.project_id)
+    )
   )
-);
+  with check (
+    exists (
+      select 1 from episodes e
+      where e.id = pages.episode_id and is_project_member(e.project_id)
+    )
+  );
 
--- ─── REALTIME ───────────────────────────────────────────────
+-- ── panels ──
+create policy "panels_all"
+  on panels for all to authenticated
+  using (
+    exists (
+      select 1 from pages pg
+      join episodes e on e.id = pg.episode_id
+      where pg.id = panels.page_id and is_project_member(e.project_id)
+    )
+  )
+  with check (
+    exists (
+      select 1 from pages pg
+      join episodes e on e.id = pg.episode_id
+      where pg.id = panels.page_id and is_project_member(e.project_id)
+    )
+  );
 
--- Enable realtime for collaboration tables
+-- ── content_blocks ──
+create policy "content_blocks_all"
+  on content_blocks for all to authenticated
+  using (
+    exists (
+      select 1 from panels pan
+      join pages pg on pg.id = pan.page_id
+      join episodes e on e.id = pg.episode_id
+      where pan.id = content_blocks.panel_id and is_project_member(e.project_id)
+    )
+  )
+  with check (
+    exists (
+      select 1 from panels pan
+      join pages pg on pg.id = pan.page_id
+      join episodes e on e.id = pg.episode_id
+      where pan.id = content_blocks.panel_id and is_project_member(e.project_id)
+    )
+  );
+
+-- ── characters ──
+create policy "characters_all"
+  on characters for all to authenticated
+  using ( is_project_member(project_id) )
+  with check ( is_project_member(project_id) );
+
+-- ── threads ──
+create policy "threads_all"
+  on threads for all to authenticated
+  using ( is_project_member(project_id) )
+  with check ( is_project_member(project_id) );
+
+-- ── messages ──
+create policy "messages_all"
+  on messages for all to authenticated
+  using (
+    exists (
+      select 1 from threads t
+      where t.id = messages.thread_id and is_project_member(t.project_id)
+    )
+  )
+  with check (
+    exists (
+      select 1 from threads t
+      where t.id = messages.thread_id and is_project_member(t.project_id)
+    )
+    and sender_id = (select auth.uid())
+  );
+
+-- ── panel_assets ──
+create policy "panel_assets_all"
+  on panel_assets for all to authenticated
+  using (
+    exists (
+      select 1 from panels pan
+      join pages pg on pg.id = pan.page_id
+      join episodes e on e.id = pg.episode_id
+      where pan.id = panel_assets.panel_id and is_project_member(e.project_id)
+    )
+  )
+  with check (
+    exists (
+      select 1 from panels pan
+      join pages pg on pg.id = pan.page_id
+      join episodes e on e.id = pg.episode_id
+      where pan.id = panel_assets.panel_id and is_project_member(e.project_id)
+    )
+  );
+
+-- ═══════════════════════════════════════════════════════════════
+-- 7. REALTIME
+-- ═══════════════════════════════════════════════════════════════
+
 alter publication supabase_realtime add table messages;
 alter publication supabase_realtime add table threads;
 alter publication supabase_realtime add table panel_assets;
 
--- ─── AUTO-CREATE USER PROFILE ON SIGNUP ─────────────────────
+-- ═══════════════════════════════════════════════════════════════
+-- 8. TRIGGERS
+-- ═══════════════════════════════════════════════════════════════
 
+-- Auto-create user profile on signup
 create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
+returns trigger language plpgsql security definer set search_path = '' as $$
 begin
   insert into public.users (id, email, name, role)
   values (
     new.id,
     new.email,
     coalesce(new.raw_user_meta_data->>'name', split_part(new.email, '@', 1)),
-    coalesce((new.raw_user_meta_data->>'role')::user_role, 'writer')
+    coalesce((new.raw_user_meta_data->>'role')::public.user_role, 'writer')
   );
   return new;
 end;
@@ -273,3 +396,27 @@ $$;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure handle_new_user();
+
+-- Auto-update updated_at timestamps
+create or replace function set_updated_at()
+returns trigger language plpgsql as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+create trigger trg_users_updated    before update on users    for each row execute procedure set_updated_at();
+create trigger trg_projects_updated before update on projects for each row execute procedure set_updated_at();
+create trigger trg_episodes_updated before update on episodes for each row execute procedure set_updated_at();
+create trigger trg_threads_updated  before update on threads  for each row execute procedure set_updated_at();
+
+-- ═══════════════════════════════════════════════════════════════
+-- 9. RPC FUNCTIONS
+-- ═══════════════════════════════════════════════════════════════
+
+-- Look up user by email for invitations (bypasses users RLS)
+create or replace function find_user_by_email(lookup_email text)
+returns uuid language sql security definer stable as $$
+  select id from public.users where email = lookup_email limit 1;
+$$;

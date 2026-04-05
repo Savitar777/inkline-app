@@ -29,28 +29,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single()
-    if (data) setProfile(data as Profile)
+  const fetchProfile = async (userId: string): Promise<Profile | null> => {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single()
+      if (error) { console.error('[AuthContext] fetchProfile:', error); return null }
+      const p = data as Profile
+      setProfile(p)
+      return p
+    } catch (err) {
+      console.error('[AuthContext] fetchProfile unexpected:', err)
+      return null
+    }
   }
 
   useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setUser(session?.user ?? null)
-      if (session?.user) fetchProfile(session.user.id)
-      setLoading(false)
-    })
-
+    // 1. Set up listener first so we don't miss events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
       setUser(session?.user ?? null)
       if (session?.user) fetchProfile(session.user.id)
       else setProfile(null)
+    })
+
+    // 2. Then check existing session — await profile before clearing loading
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      setSession(session)
+      setUser(session?.user ?? null)
+      if (session?.user) {
+        await fetchProfile(session.user.id)
+      }
+      setLoading(false)
     })
 
     return () => subscription.unsubscribe()

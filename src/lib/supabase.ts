@@ -1,15 +1,28 @@
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.warn('Supabase env vars missing — running in offline/mock mode.')
+/**
+ * `true` when Supabase environment variables are not set or are obviously
+ * placeholder values.  The rest of the app uses this to skip network calls
+ * and run in offline / localStorage-only mode.
+ */
+export const isSupabaseConfigured: boolean = !!(
+  supabaseUrl &&
+  supabaseAnonKey &&
+  !supabaseUrl.includes('placeholder')
+)
+
+if (!isSupabaseConfigured) {
+  console.warn(
+    'Supabase env vars missing or placeholder — running in offline/mock mode.\n' +
+    'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local to connect.',
+  )
 }
 
-// Untyped client — replace with createClient<Database>(…) once types are
-// generated via `supabase gen types typescript` from a real project.
-export const supabase = createClient(
-  supabaseUrl ?? 'https://placeholder.supabase.co',
-  supabaseAnonKey ?? 'placeholder',
-)
+// Create a real client only when configured; otherwise provide a dummy that
+// will never be used (all call-sites guard on isSupabaseConfigured).
+export const supabase: SupabaseClient = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!)
+  : createClient('https://placeholder.supabase.co', 'placeholder')
