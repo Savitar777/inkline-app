@@ -64,6 +64,8 @@ export async function fetchProject(projectId: string): Promise<Project | null> {
             number: pan.number,
             shot: pan.shot,
             description: pan.description,
+            status: pan.status ?? undefined,
+            assetUrl: pan.asset_url ?? undefined,
             content: (pan.content_blocks ?? [])
               .sort((a: any, b: any) => a.order - b.order)
               .map((b: any) => ({
@@ -197,7 +199,7 @@ export async function createPanel(pageId: string, number: number, shot: string, 
   return panelId
 }
 
-export async function updatePanel(panelId: string, updates: { shot?: string; description?: string }) {
+export async function updatePanel(panelId: string, updates: { shot?: string; description?: string; status?: string; asset_url?: string }) {
   const { error } = await supabase.from('panels').update(updates).eq('id', panelId)
   if (error) handleError('updatePanel', error)
 }
@@ -282,10 +284,13 @@ export async function sendMessage(
   threadId: string,
   senderId: string,
   text: string,
+  attachmentUrl?: string,
 ): Promise<string | null> {
+  const row: Record<string, any> = { thread_id: threadId, sender_id: senderId, text }
+  if (attachmentUrl) row.attachment_url = attachmentUrl
   const { data, error } = await supabase
     .from('messages')
-    .insert({ thread_id: threadId, sender_id: senderId, text })
+    .insert(row)
     .select('id')
     .single()
   if (error) { handleError('sendMessage', error); return null }
@@ -318,4 +323,100 @@ export async function inviteMember(
 
   if (error) return error.message
   return null
+}
+
+/* ─── Collaborators ─── */
+
+export interface Collaborator {
+  id: string
+  name: string
+  role: string
+  email: string
+  avatarUrl?: string | null
+}
+
+export async function fetchCollaborators(projectId: string): Promise<Collaborator[]> {
+  // Fetch owner
+  const { data: proj } = await supabase
+    .from('projects')
+    .select('owner_id, owner:users!projects_owner_id_fkey(id, name, role, email, avatar_url)')
+    .eq('id', projectId)
+    .single()
+
+  // Fetch members
+  const { data: members } = await supabase
+    .from('project_members')
+    .select('user:users(id, name, role, email, avatar_url)')
+    .eq('project_id', projectId)
+
+  const result: Collaborator[] = []
+
+  if (proj?.owner) {
+    const o = proj.owner as any
+    result.push({ id: o.id, name: o.name, role: o.role, email: o.email, avatarUrl: o.avatar_url })
+  }
+
+  for (const m of members ?? []) {
+    const u = (m as any).user
+    if (u && !result.some(r => r.id === u.id)) {
+      result.push({ id: u.id, name: u.name, role: u.role, email: u.email, avatarUrl: u.avatar_url })
+    }
+  }
+
+  return result
+}
+
+/* ─── File Upload (Supabase Storage) ─── */
+
+export async function uploadPanelArtwork(
+  projectId: string,
+  panelId: string,
+  file: File,
+  userId: string,
+): Promise<{ url: string; assetId: string } | null> {
+  const ext = file.name.split('.').pop() ?? 'png'
+  const path = `${projectId}/${panelId}/${Date.now()}.${ext}`
+
+  const { error: uploadErr } = await supabase.storage
+    .from('panel-artwork')
+    .upload(path, file, { cacheControl: '3600', upsert: false })
+
+  if (uploadErr) { handleError('uploadPanelArtwork', uploadErr); return null }
+
+  const { data: urlData } = supabase.storage.from('panel-artwork').getPublicUrl(path)
+  const url = urlData.publicUrl
+
+  // Get current max version for this panel
+  const { data: existing } = await supabase
+    .from('panel_assets')
+    .select('version')
+    .eq('panel_id', panelId)
+    .order('version', { ascending: false })
+    .limit(1)
+
+  const version = (existing?.[0]?.version ?? 0) + 1
+
+  const { data: asset, error: assetErr } = await supabase
+    .from('panel_assets')
+    .insert({ panel_id: panelId, uploaded_by: userId, file_url: url, version })
+    .select('id')
+    .single()
+
+  if (assetErr) { handleError('uploadPanelArtwork.asset', assetErr); return null }
+
+  // Update the panel's asset_url to the latest upload
+  await supabase.from('panels').update({ asset_url: url, status: 'draft_received' }).eq('id', panelId)
+
+  return { url, assetId: asset.id }
+}
+
+export async function fetchPanelAssets(panelId: string) {
+  const { data, error } = await supabase
+    .from('panel_assets')
+    .select('*, uploader:users(name)')
+    .eq('panel_id', panelId)
+    .order('version', { ascending: false })
+
+  if (error) { handleError('fetchPanelAssets', error); return [] }
+  return data ?? []
 }

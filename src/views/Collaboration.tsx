@@ -12,8 +12,10 @@ import {
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
 import { supabase } from '../lib/supabase'
-import { sendMessage, inviteMember } from '../services/projectService'
-import type { Thread, Message } from '../types'
+import { isSupabaseConfigured } from '../lib/supabase'
+import { sendMessage, inviteMember, uploadPanelArtwork, fetchCollaborators } from '../services/projectService'
+import type { Collaborator } from '../services/projectService'
+import type { Thread, Message, Panel } from '../types'
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   submitted: { label: 'Submitted', color: 'text-status-submitted bg-status-submitted/10 border-status-submitted/30', icon: <Send size={10} /> },
@@ -22,16 +24,16 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.R
   approved: { label: 'Approved', color: 'text-status-approved bg-status-approved/10 border-status-approved/30', icon: <CheckCircle2 size={10} /> },
 }
 
-const collaborators = [
-  { name: 'Kai Nakamura', role: 'Lead Artist', status: 'online', avatar: 'K' },
-  { name: 'Sora Lin', role: 'Colorist', status: 'away', avatar: 'S' },
-  { name: 'Jake Torres', role: 'Letterer', status: 'offline', avatar: 'J' },
+const MOCK_COLLABORATORS = [
+  { name: 'Kai Nakamura', role: 'artist', status: 'online', avatar: 'K' },
+  { name: 'Sora Lin', role: 'colorist', status: 'away', avatar: 'S' },
+  { name: 'Jake Torres', role: 'letterer', status: 'offline', avatar: 'J' },
 ]
 
 /* ─── Component ─── */
 
 export default function Collaboration() {
-  const { project, activeEpisodeId } = useProject()
+  const { project, activeEpisodeId, updatePanel } = useProject()
   const { user, profile } = useAuth()
 
   const episodeThreads: Thread[] = activeEpisodeId
@@ -52,11 +54,25 @@ export default function Collaboration() {
   const [showUpload, setShowUpload] = useState(false)
   const [dragOver, setDragOver] = useState(false)
   const [uploadPreview, setUploadPreview] = useState<string | null>(null)
+  const [uploadFile, setUploadFile] = useState<File | null>(null)
+  const [selectedPanelId, setSelectedPanelId] = useState<string>('')
+  const [uploading, setUploading] = useState(false)
+  const [collaborators, setCollaborators] = useState<Collaborator[]>([])
+  const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set())
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+  // All panels from current episode, flattened for the panel picker
+  const allPanels: (Panel & { pageNumber: number; pageId: string })[] = activeEpisode
+    ? activeEpisode.pages.flatMap(pg =>
+        pg.panels.map(pan => ({ ...pan, pageNumber: pg.number, pageId: pg.id }))
+      )
+    : []
 
   const handleFileSelect = useCallback((file: File) => {
     if (!file.type.startsWith('image/')) return
+    setUploadFile(file)
     const reader = new FileReader()
     reader.onload = e => setUploadPreview(e.target?.result as string)
     reader.readAsDataURL(file)
@@ -69,21 +85,41 @@ export default function Collaboration() {
     if (file) handleFileSelect(file)
   }, [handleFileSelect])
 
-  const attachUpload = useCallback(() => {
+  const attachUpload = useCallback(async () => {
     if (!uploadPreview || !activeThread) return
-    // In offline mode: send as a message with image flag
-    const msg: Message = {
-      id: `${Date.now()}`,
-      sender: profile?.role === 'artist' ? 'artist' : 'writer',
-      name: profile?.name ?? 'Artist',
-      image: true,
-      imageLabel: 'Draft artwork',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+
+    // Online mode: upload to Supabase Storage and link to panel
+    if (isSupabaseConfigured && user && project.id && uploadFile && selectedPanelId) {
+      setUploading(true)
+      const result = await uploadPanelArtwork(project.id, selectedPanelId, uploadFile, user.id)
+      setUploading(false)
+      if (result) {
+        // Update panel in local state with the new asset URL
+        const pan = allPanels.find(p => p.id === selectedPanelId)
+        if (pan && activeEpisode) {
+          updatePanel(activeEpisode.id, pan.pageId, pan.id, { assetUrl: result.url, status: 'draft_received' })
+        }
+        // Send notification message in thread
+        const panLabel = pan ? `P${pan.pageNumber}/Panel ${pan.number}` : 'a panel'
+        await sendMessage(activeThread, user.id, `Uploaded draft artwork for ${panLabel}`, result.url)
+      }
+    } else {
+      // Offline mode: append locally
+      const msg: Message = {
+        id: `${Date.now()}`,
+        sender: profile?.role === 'artist' ? 'artist' : 'writer',
+        name: profile?.name ?? 'Artist',
+        image: true,
+        imageLabel: 'Draft artwork',
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+      setLiveMessages(prev => [...prev, msg])
     }
-    setLiveMessages(prev => [...prev, msg])
     setUploadPreview(null)
+    setUploadFile(null)
+    setSelectedPanelId('')
     setShowUpload(false)
-  }, [uploadPreview, activeThread, profile])
+  }, [uploadPreview, activeThread, profile, user, project.id, uploadFile, selectedPanelId, allPanels, activeEpisode])
 
   useEffect(() => {
     const first = episodeThreads[0]?.id ?? ''
@@ -99,6 +135,12 @@ export default function Collaboration() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [liveMessages])
+
+  // Fetch real collaborators
+  useEffect(() => {
+    if (!isSupabaseConfigured || !project.id) return
+    fetchCollaborators(project.id).then(setCollaborators)
+  }, [project.id])
 
   // Supabase Realtime — subscribe to new messages on the active thread
   useEffect(() => {
@@ -124,6 +166,36 @@ export default function Collaboration() {
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
+  }, [activeThread, user])
+
+  // Typing indicators via Supabase Realtime Presence
+  useEffect(() => {
+    if (!activeThread || !user || !isSupabaseConfigured) return
+    const channel = supabase.channel(`typing:${activeThread}`, { config: { presence: { key: user.id } } })
+    channel
+      .on('presence', { event: 'sync' }, () => {
+        const state = channel.presenceState()
+        const typing = new Set<string>()
+        for (const [uid, presences] of Object.entries(state)) {
+          if (uid !== user.id && (presences as any[]).some((p: any) => p.typing)) {
+            typing.add(uid)
+          }
+        }
+        setTypingUsers(typing)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [activeThread, user])
+
+  // Broadcast typing state when user types
+  const broadcastTyping = useCallback(() => {
+    if (!activeThread || !user || !isSupabaseConfigured) return
+    const channel = supabase.channel(`typing:${activeThread}`)
+    channel.track({ typing: true })
+    clearTimeout(typingTimeout.current)
+    typingTimeout.current = setTimeout(() => {
+      channel.track({ typing: false })
+    }, 2000)
   }, [activeThread, user])
 
   const handleSend = useCallback(async () => {
@@ -152,10 +224,36 @@ export default function Collaboration() {
   const thread = episodeThreads.find(t => t.id === activeThread) ?? null
   const displayMessages = liveMessages.length > 0 ? liveMessages : (thread?.messages ?? [])
 
-  const pageTracker = activeEpisode?.pages.map((pg, i) => ({
-    page: pg.number,
-    status: i === 0 ? 'approved' : i === 1 ? 'draft_received' : 'submitted',
-  })) ?? []
+  // Derive page tracker from real panel statuses
+  const pageTracker = activeEpisode?.pages.map(pg => {
+    const statuses = pg.panels.map(pan => pan.status ?? 'draft')
+    // Page status = worst panel status
+    const pageStatus = statuses.includes('draft') ? 'draft'
+      : statuses.includes('submitted') ? 'submitted'
+      : statuses.includes('in_progress') ? 'in_progress'
+      : statuses.includes('changes_requested') ? 'changes_requested'
+      : statuses.includes('draft_received') ? 'draft_received'
+      : 'approved'
+    return { page: pg.number, status: pageStatus }
+  }) ?? []
+
+  // Compute real deliverables from panel data
+  const deliverables = (() => {
+    const all = allPanels.map(p => p.status ?? 'draft')
+    return [
+      { label: 'Drafts received', count: all.filter(s => s === 'draft_received').length, icon: <Palette size={11} />, color: 'text-status-draft' },
+      { label: 'Approved panels', count: all.filter(s => s === 'approved').length, icon: <CheckCircle2 size={11} />, color: 'text-status-approved' },
+      { label: 'Awaiting review', count: all.filter(s => s === 'submitted' || s === 'in_progress').length, icon: <FileText size={11} />, color: 'text-status-submitted' },
+    ]
+  })()
+
+  // Display list: real collaborators or mock fallback
+  const displayCollaborators = collaborators.length > 0 ? collaborators : MOCK_COLLABORATORS.map(c => ({
+    id: c.name, name: c.name, role: c.role, email: '', avatarUrl: null,
+  }))
+
+  // Typing indicator names
+  const typingNames = collaborators.filter(c => typingUsers.has(c.id)).map(c => c.name.split(' ')[0])
 
   return (
     <div className="flex h-full">
@@ -203,13 +301,15 @@ export default function Collaboration() {
         {/* Page Tracker */}
         <div className="px-4 py-3 border-t border-ink-border">
           <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">{activeEpisode ? `EP${activeEpisode.number} Page Status` : 'Page Status'}</span>
-          <div className="flex gap-1.5">
+          <div className="flex gap-1.5 flex-wrap">
             {pageTracker.map((p) => {
               const colors: Record<string, string> = {
                 approved: 'bg-status-approved',
                 draft_received: 'bg-status-draft',
                 submitted: 'bg-status-submitted',
                 in_progress: 'bg-status-progress',
+                changes_requested: 'bg-red-400',
+                draft: 'bg-ink-muted/50',
               }
               return (
                 <div key={p.page} className="flex flex-col items-center gap-1">
@@ -308,15 +408,29 @@ export default function Collaboration() {
               {uploadPreview ? (
                 <div className="p-3 space-y-2">
                   <img src={uploadPreview} alt="Preview" className="w-full max-h-48 object-contain rounded" />
+                  {/* Panel picker */}
+                  {allPanels.length > 0 && (
+                    <select
+                      value={selectedPanelId}
+                      onChange={e => setSelectedPanelId(e.target.value)}
+                      className="w-full bg-ink-panel border border-ink-border rounded px-2.5 py-1.5 text-xs font-sans text-ink-text outline-none focus:border-ink-gold/50"
+                    >
+                      <option value="">Link to panel…</option>
+                      {allPanels.map(p => (
+                        <option key={p.id} value={p.id}>P{p.pageNumber} / Panel {p.number}</option>
+                      ))}
+                    </select>
+                  )}
                   <div className="flex gap-2">
                     <button
                       onClick={attachUpload}
-                      className="flex-1 py-1.5 rounded text-xs font-sans bg-ink-gold text-ink-black font-semibold hover:bg-ink-gold-dim transition-colors"
+                      disabled={uploading || (isSupabaseConfigured && !selectedPanelId)}
+                      className="flex-1 py-1.5 rounded text-xs font-sans bg-ink-gold text-ink-black font-semibold hover:bg-ink-gold-dim transition-colors disabled:opacity-50"
                     >
-                      Send as Draft
+                      {uploading ? 'Uploading…' : 'Send as Draft'}
                     </button>
                     <button
-                      onClick={() => { setUploadPreview(null); setShowUpload(false) }}
+                      onClick={() => { setUploadPreview(null); setUploadFile(null); setSelectedPanelId(''); setShowUpload(false) }}
                       className="px-3 py-1.5 rounded text-xs font-sans text-ink-muted hover:text-ink-text transition-colors"
                     >
                       Cancel
@@ -365,7 +479,7 @@ export default function Collaboration() {
               placeholder="Type a message..."
               value={inputText}
               onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend() }}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(); else broadcastTyping() }}
               className="flex-1 bg-transparent text-sm font-sans text-ink-light placeholder:text-ink-muted outline-none"
             />
             <button
@@ -439,33 +553,36 @@ export default function Collaboration() {
           </div>
         )}
         <div className="flex-1 overflow-y-auto py-2">
-          {collaborators.map((c) => (
-            <div key={c.name} className="px-4 py-3 flex items-center gap-3">
+          {displayCollaborators.map((c) => (
+            <div key={c.id} className="px-4 py-3 flex items-center gap-3">
               <div className="relative">
                 <div className="w-8 h-8 rounded-full bg-ink-panel flex items-center justify-center text-xs font-mono text-ink-text">
-                  {c.avatar}
+                  {c.name[0]}
                 </div>
-                <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-ink-dark ${
-                  c.status === 'online' ? 'bg-status-approved' : c.status === 'away' ? 'bg-status-progress' : 'bg-ink-muted'
-                }`} />
+                {typingUsers.has(c.id) && (
+                  <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-ink-dark bg-status-approved animate-pulse" />
+                )}
               </div>
               <div>
                 <div className="text-xs font-sans text-ink-light">{c.name}</div>
-                <div className="text-[10px] text-ink-muted font-sans">{c.role}</div>
+                <div className="text-[10px] text-ink-muted font-sans capitalize">{c.role}</div>
               </div>
             </div>
           ))}
+          {typingNames.length > 0 && (
+            <div className="px-4 py-2">
+              <span className="text-[10px] text-ink-muted font-sans italic">
+                {typingNames.join(', ')} {typingNames.length === 1 ? 'is' : 'are'} typing…
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Deliverables Summary */}
         <div className="px-4 py-3 border-t border-ink-border">
           <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">Deliverables</span>
           <div className="space-y-2">
-            {[
-              { label: 'Drafts received', count: 4, icon: <Palette size={11} />, color: 'text-status-draft' },
-              { label: 'Approved panels', count: 12, icon: <CheckCircle2 size={11} />, color: 'text-status-approved' },
-              { label: 'Awaiting review', count: 3, icon: <FileText size={11} />, color: 'text-status-submitted' },
-            ].map((item) => (
+            {deliverables.map((item) => (
               <div key={item.label} className="flex items-center justify-between">
                 <div className="flex items-center gap-1.5">
                   <span className={item.color}>{item.icon}</span>

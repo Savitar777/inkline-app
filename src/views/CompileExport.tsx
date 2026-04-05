@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useCallback } from 'react'
 import {
   Download,
   Check,
@@ -15,6 +15,8 @@ import {
 } from '../icons'
 import FormatPreview from '../components/FormatPreview'
 import { useProject } from '../context/ProjectContext'
+import { useAuth } from '../context/AuthContext'
+import { sendMessage } from '../services/projectService'
 import type { PanelStatus } from '../types'
 
 /* ─── Types ─── */
@@ -50,6 +52,7 @@ function panelThumbStatus(status: PanelStatus | undefined): PanelThumb['status']
 
 export default function CompileExport() {
   const { project, activeEpisodeId, updatePanel } = useProject()
+  const { user } = useAuth()
   const [selectedFormat, setSelectedFormat] = useState<Format>('webtoon')
   const [exportOpen, setExportOpen] = useState(false)
   const [changesNote, setChangesNote] = useState<Record<string, string>>({})
@@ -71,19 +74,48 @@ export default function CompileExport() {
     : []
 
   const completeCount = panels.filter((p) => p.status === 'complete').length
+  const reviewCount = panels.filter((p) => p.status === 'review').length
   const totalCount = panels.length
   const percentage = totalCount > 0 ? Math.round((completeCount / totalCount) * 100) : 0
+
+  // Check if all panels have been submitted (none are in 'draft' / 'missing')
+  const allSubmitted = totalCount > 0 && panels.every(p => p.status !== 'missing')
+  const allApproved = totalCount > 0 && completeCount === totalCount
 
   const approve = (panelId: string, pageId: string) => {
     if (!episode) return
     updatePanel(episode.id, pageId, panelId, { status: 'approved' as PanelStatus })
   }
 
-  const requestChanges = (panelId: string, pageId: string) => {
+  const requestChanges = async (panelId: string, pageId: string) => {
     if (!episode) return
     updatePanel(episode.id, pageId, panelId, { status: 'changes_requested' as PanelStatus })
+
+    // Send the changes note as a message in the episode's thread
+    const note = changesNote[panelId]?.trim()
+    if (note && user) {
+      const epThread = project.threads.find(t => t.episodeId === episode.id)
+      if (epThread) {
+        const pan = panels.find(p => p.id === panelId)
+        const label = pan ? `P${pan.page}/Panel ${pan.panel}` : 'a panel'
+        await sendMessage(epThread.id, user.id, `Changes requested for ${label}: ${note}`)
+      }
+    }
+    setChangesNote(prev => { const n = { ...prev }; delete n[panelId]; return n })
     setShowChangesFor(null)
   }
+
+  // Bulk approve all reviewable panels on a given page
+  const bulkApprovePage = useCallback((pageId: string) => {
+    if (!episode) return
+    const page = episode.pages.find(pg => pg.id === pageId)
+    if (!page) return
+    for (const pan of page.panels) {
+      if (pan.status === 'draft_received' || pan.status === 'changes_requested') {
+        updatePanel(episode.id, pageId, pan.id, { status: 'approved' as PanelStatus })
+      }
+    }
+  }, [episode, updatePanel])
 
   return (
     <div className="flex h-full">
@@ -183,6 +215,26 @@ export default function CompileExport() {
                 </div>
               </div>
             </div>
+
+            {/* Bulk approve per page */}
+            {episode && episode.pages.some(pg => pg.panels.some(pan => pan.status === 'draft_received' || pan.status === 'changes_requested')) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {episode.pages.map(pg => {
+                  const reviewable = pg.panels.filter(pan => pan.status === 'draft_received' || pan.status === 'changes_requested')
+                  if (reviewable.length === 0) return null
+                  return (
+                    <button
+                      key={pg.id}
+                      onClick={() => bulkApprovePage(pg.id)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-sans bg-status-approved/10 text-status-approved border border-status-approved/20 hover:bg-status-approved/20 transition-colors"
+                    >
+                      <Check size={10} />
+                      Approve Page {pg.number} ({reviewable.length} panel{reviewable.length !== 1 ? 's' : ''})
+                    </button>
+                  )
+                })}
+              </div>
+            )}
 
             <div className="grid grid-cols-4 gap-3">
               {panels.map((p) => {
@@ -349,9 +401,9 @@ export default function CompileExport() {
           <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">Export Checklist</span>
           <div className="space-y-2">
             {[
-              { label: 'All panels submitted', done: false },
-              { label: 'All panels approved', done: false },
-              { label: 'Lettering complete', done: false },
+              { label: 'All panels submitted', done: allSubmitted },
+              { label: 'All panels approved', done: allApproved },
+              { label: 'No panels in review', done: reviewCount === 0 },
               { label: 'Format selected', done: true },
               { label: 'Color profile set', done: true },
             ].map((item) => (

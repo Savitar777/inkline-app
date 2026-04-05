@@ -18,6 +18,7 @@ create type project_format as enum ('webtoon', 'manhwa', 'manga', 'comic');
 create type content_block_type as enum ('dialogue', 'caption', 'sfx');
 create type thread_status as enum ('submitted', 'in_progress', 'draft_received', 'approved');
 create type asset_status as enum ('draft', 'approved', 'rejected');
+create type panel_status as enum ('draft', 'submitted', 'in_progress', 'draft_received', 'changes_requested', 'approved');
 
 -- ═══════════════════════════════════════════════════════════════
 -- 2. TABLES
@@ -77,6 +78,8 @@ create table panels (
   shot        text not null default '',
   description text not null default '',
   "order"     int not null default 0,
+  status      panel_status not null default 'draft',
+  asset_url   text,
   unique (page_id, number)
 );
 

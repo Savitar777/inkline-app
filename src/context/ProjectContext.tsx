@@ -253,7 +253,14 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
         }
       }),
     }))
-    if (projectId) svc.updatePanel(panelId, updates)
+    if (projectId) {
+      const dbUpdates: Record<string, any> = {}
+      if (updates.shot !== undefined) dbUpdates.shot = updates.shot
+      if (updates.description !== undefined) dbUpdates.description = updates.description
+      if (updates.status !== undefined) dbUpdates.status = updates.status
+      if (updates.assetUrl !== undefined) dbUpdates.asset_url = updates.assetUrl
+      svc.updatePanel(panelId, dbUpdates)
+    }
   }, [projectId])
 
   const deletePanel = useCallback((episodeId: string, pageId: string, panelId: string) => {

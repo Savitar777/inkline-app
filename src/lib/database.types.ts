@@ -5,6 +5,7 @@ export type ProjectFormat = 'webtoon' | 'manhwa' | 'manga' | 'comic'
 export type ContentBlockType = 'dialogue' | 'caption' | 'sfx'
 export type ThreadStatus = 'submitted' | 'in_progress' | 'draft_received' | 'approved'
 export type AssetStatus = 'draft' | 'approved' | 'rejected'
+export type PanelStatus = 'draft' | 'submitted' | 'in_progress' | 'draft_received' | 'changes_requested' | 'approved'
 
 // NOTE: This file is a hand-written placeholder.
 // Replace it with the output of `supabase gen types typescript` once connected
@@ -80,6 +81,8 @@ export interface Database {
           shot: string
           description: string
           order: number
+          status: PanelStatus
+          asset_url: string | null
         }
         Insert: Omit<Database['public']['Tables']['panels']['Row'], 'id'>
         Update: Partial<Database['public']['Tables']['panels']['Insert']>
@@ -166,6 +169,7 @@ export interface Database {
       content_block_type: ContentBlockType
       thread_status: ThreadStatus
       asset_status: AssetStatus
+      panel_status: PanelStatus
     }
   }
 }
