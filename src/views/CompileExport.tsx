@@ -11,9 +11,11 @@ import {
   Image,
   FileDown,
   ChevronDown,
+  X,
 } from '../icons'
 import FormatPreview from '../components/FormatPreview'
 import { useProject } from '../context/ProjectContext'
+import type { PanelStatus } from '../types'
 
 /* ─── Types ─── */
 
@@ -40,21 +42,30 @@ const exportFormats = ['PDF', 'PNG Sequence', 'PSD Layers', 'TIFF (Print)']
 
 /* ─── Component ─── */
 
+function panelThumbStatus(status: PanelStatus | undefined): PanelThumb['status'] {
+  if (status === 'approved') return 'complete'
+  if (status === 'draft_received' || status === 'changes_requested') return 'review'
+  return 'missing'
+}
+
 export default function CompileExport() {
-  const { project, activeEpisodeId } = useProject()
+  const { project, activeEpisodeId, updatePanel } = useProject()
   const [selectedFormat, setSelectedFormat] = useState<Format>('webtoon')
   const [exportOpen, setExportOpen] = useState(false)
+  const [changesNote, setChangesNote] = useState<Record<string, string>>({})
+  const [showChangesFor, setShowChangesFor] = useState<string | null>(null)
 
   const episode = project.episodes.find(e => e.id === activeEpisodeId)
 
   const panels: PanelThumb[] = episode
     ? episode.pages.flatMap(pg =>
-        pg.panels.map((pan, idx) => ({
+        pg.panels.map(pan => ({
           id: pan.id,
           page: pg.number,
           panel: pan.number,
-          status: (idx === 0 ? 'complete' : idx === 1 ? 'review' : 'missing') as PanelThumb['status'],
+          status: panelThumbStatus(pan.status),
           label: pan.description ? pan.description.slice(0, 60) : `Panel ${pan.number}`,
+          _pageId: pg.id,
         }))
       )
     : []
@@ -62,6 +73,17 @@ export default function CompileExport() {
   const completeCount = panels.filter((p) => p.status === 'complete').length
   const totalCount = panels.length
   const percentage = totalCount > 0 ? Math.round((completeCount / totalCount) * 100) : 0
+
+  const approve = (panelId: string, pageId: string) => {
+    if (!episode) return
+    updatePanel(episode.id, pageId, panelId, { status: 'approved' as PanelStatus })
+  }
+
+  const requestChanges = (panelId: string, pageId: string) => {
+    if (!episode) return
+    updatePanel(episode.id, pageId, panelId, { status: 'changes_requested' as PanelStatus })
+    setShowChangesFor(null)
+  }
 
   return (
     <div className="flex h-full">
@@ -163,7 +185,11 @@ export default function CompileExport() {
             </div>
 
             <div className="grid grid-cols-4 gap-3">
-              {panels.map((p) => (
+              {panels.map((p) => {
+                const ep = episode!
+                const pageId = (p as any)._pageId as string
+                const pan = ep.pages.find(pg => pg.id === pageId)?.panels.find(pan => pan.id === p.id)
+                return (
                 <div
                   key={p.id}
                   className={`rounded-lg border overflow-hidden ${
@@ -174,46 +200,88 @@ export default function CompileExport() {
                       : 'border-ink-border border-dashed'
                   }`}
                 >
-                  {/* Thumbnail area */}
+                  {/* Thumbnail / asset area */}
                   <div className={`h-32 flex items-center justify-center relative ${
                     p.status === 'missing' ? 'bg-ink-panel' : 'bg-ink-muted/10'
                   }`}>
-                    {p.status === 'complete' && (
+                    {pan?.assetUrl ? (
+                      <img src={pan.assetUrl} alt={`Panel ${p.panel}`} className="w-full h-full object-cover" />
+                    ) : p.status === 'complete' ? (
                       <>
-                        <div className="absolute inset-0 opacity-5" style={{
-                          backgroundImage: `linear-gradient(135deg, rgba(212,168,67,0.3) 0%, transparent 50%, rgba(212,168,67,0.1) 100%)`,
-                        }} />
+                        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `linear-gradient(135deg, rgba(212,168,67,0.3) 0%, transparent 50%)` }} />
                         <Image size={20} className="text-ink-muted/50" />
-                        <div className="absolute top-2 right-2">
-                          <Check size={14} className="text-status-approved" />
-                        </div>
                       </>
-                    )}
-                    {p.status === 'review' && (
-                      <>
-                        <Image size={20} className="text-ink-muted/50" />
-                        <div className="absolute top-2 right-2">
-                          <AlertCircle size={14} className="text-status-draft" />
-                        </div>
-                      </>
-                    )}
-                    {p.status === 'missing' && (
+                    ) : p.status === 'review' ? (
+                      <Image size={20} className="text-ink-muted/50" />
+                    ) : (
                       <div className="flex flex-col items-center gap-1">
                         <Layers size={18} className="text-ink-muted/30" />
                         <span className="text-[9px] text-ink-muted font-sans">Awaiting art</span>
                       </div>
                     )}
+                    {/* Status badge overlay */}
+                    {p.status !== 'missing' && (
+                      <div className="absolute top-2 right-2">
+                        {p.status === 'complete'
+                          ? <Check size={14} className="text-status-approved" />
+                          : <AlertCircle size={14} className="text-status-draft" />}
+                      </div>
+                    )}
                   </div>
+
                   <div className="px-3 py-2 bg-ink-dark border-t border-ink-border/50">
-                    <div className="text-[10px] font-mono text-ink-text">
-                      P{p.page} · Panel {p.panel}
-                    </div>
-                    <div className="text-[11px] text-ink-muted font-sans truncate mt-0.5">
-                      {p.label}
-                    </div>
+                    <div className="text-[10px] font-mono text-ink-text">P{p.page} · Panel {p.panel}</div>
+                    <div className="text-[11px] text-ink-muted font-sans truncate mt-0.5">{p.label}</div>
+
+                    {/* Review controls — only shown when draft received */}
+                    {p.status === 'review' && (
+                      <div className="mt-2 space-y-1">
+                        {showChangesFor === p.id ? (
+                          <div className="space-y-1">
+                            <textarea
+                              placeholder="Note for artist…"
+                              value={changesNote[p.id] ?? ''}
+                              onChange={e => setChangesNote(prev => ({ ...prev, [p.id]: e.target.value }))}
+                              rows={2}
+                              className="w-full bg-ink-panel border border-ink-border rounded px-2 py-1 text-[10px] font-sans text-ink-light placeholder:text-ink-muted outline-none resize-none"
+                            />
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => requestChanges(p.id, pageId)}
+                                className="flex-1 py-1 rounded text-[10px] font-sans bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                              >
+                                Send
+                              </button>
+                              <button
+                                onClick={() => setShowChangesFor(null)}
+                                className="px-2 py-1 rounded text-[10px] text-ink-muted hover:text-ink-text transition-colors"
+                              >
+                                <X size={10} />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => approve(p.id, pageId)}
+                              className="flex-1 py-1 rounded text-[10px] font-sans bg-status-approved/20 text-status-approved hover:bg-status-approved/30 transition-colors flex items-center justify-center gap-1"
+                            >
+                              <Check size={9} /> Approve
+                            </button>
+                            <button
+                              onClick={() => setShowChangesFor(p.id)}
+                              className="flex-1 py-1 rounded text-[10px] font-sans bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
+                            >
+                              Changes
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           </div>
         </div>

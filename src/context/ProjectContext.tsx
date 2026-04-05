@@ -28,7 +28,7 @@ interface ProjectContextType {
 
   // Panel
   addPanel: (episodeId: string, pageId: string, shot: string) => void
-  updatePanel: (episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description'>>) => void
+  updatePanel: (episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
   deletePanel: (episodeId: string, pageId: string, panelId: string) => void
 
   // Content Block
@@ -224,7 +224,7 @@ export function ProjectProvider({ children, projectId, userId: _userId }: Provid
     }))
   }, [projectId])
 
-  const updatePanel = useCallback((episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description'>>) => {
+  const updatePanel = useCallback((episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => {
     setProject(p => ({
       ...p,
       episodes: p.episodes.map(ep => {

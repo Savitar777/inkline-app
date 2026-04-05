@@ -171,7 +171,7 @@ function AppShell() {
           onBackToDashboard={() => setActiveProjectId(null)}
         />
         <main className="flex-1 overflow-hidden">
-          {activeView === 'editor' && <ScriptEditor />}
+          {activeView === 'editor' && <ScriptEditor onGoToCollab={() => setActiveView('collab')} />}
           {activeView === 'collab' && <Collaboration />}
           {activeView === 'compile' && <CompileExport />}
         </main>

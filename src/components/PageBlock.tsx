@@ -12,7 +12,7 @@ interface Props {
   onUpdatePage: (pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => void
   onDeletePage: (pageId: string) => void
   onAddPanel: (pageId: string, shot: string) => void
-  onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description'>>) => void
+  onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
   onDeletePanel: (pageId: string, panelId: string) => void
   onAddBlock: (pageId: string, panelId: string, type: ContentBlock['type']) => void
   onUpdateBlock: (pageId: string, panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void

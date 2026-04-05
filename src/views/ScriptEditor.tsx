@@ -12,6 +12,7 @@ import {
 } from '../icons'
 import Tag from '../components/Tag'
 import PageBlock from '../components/PageBlock'
+import SubmitToArtistModal from '../components/SubmitToArtistModal'
 import { useProject } from '../context/ProjectContext'
 import type { Character } from '../types'
 
@@ -162,7 +163,11 @@ function CharacterCard({ char }: { char: Character }) {
 
 /* ─── Main View ─── */
 
-export default function ScriptEditor() {
+interface Props {
+  onGoToCollab?: () => void
+}
+
+export default function ScriptEditor({ onGoToCollab }: Props = {}) {
   const {
     project, activeEpisodeId, setActiveEpisodeId,
     addEpisode, updateEpisode, deleteEpisode,
@@ -180,6 +185,7 @@ export default function ScriptEditor() {
   const [briefDraft, setBriefDraft] = useState('')
   const [showAddChar, setShowAddChar] = useState(false)
   const [confirmDelEp, setConfirmDelEp] = useState<string | null>(null)
+  const [showSubmit, setShowSubmit] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const briefRef = useRef<HTMLTextAreaElement>(null)
 
@@ -319,7 +325,10 @@ export default function ScriptEditor() {
                     <Eye size={13} />
                     Preview
                   </button>
-                  <button className="flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors">
+                  <button
+                    onClick={() => setShowSubmit(true)}
+                    className="flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors"
+                  >
                     <Send size={13} />
                     Submit to Artist
                   </button>
@@ -443,6 +452,14 @@ export default function ScriptEditor() {
           </div>
         </div>
       </aside>
+
+      {showSubmit && episode && (
+        <SubmitToArtistModal
+          episode={episode}
+          onClose={() => setShowSubmit(false)}
+          onSubmitted={() => { setShowSubmit(false); onGoToCollab?.() }}
+        />
+      )}
     </div>
   )
 }

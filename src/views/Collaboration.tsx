@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, type DragEvent } from 'react'
 import {
   Send,
   Paperclip,
@@ -49,7 +49,41 @@ export default function Collaboration() {
   const [inviteRole, setInviteRole] = useState('artist')
   const [inviteStatus, setInviteStatus] = useState<string | null>(null)
   const [inviting, setInviting] = useState(false)
+  const [showUpload, setShowUpload] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
+  const [uploadPreview, setUploadPreview] = useState<string | null>(null)
+  const uploadInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const handleFileSelect = useCallback((file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const reader = new FileReader()
+    reader.onload = e => setUploadPreview(e.target?.result as string)
+    reader.readAsDataURL(file)
+  }, [])
+
+  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+    e.preventDefault()
+    setDragOver(false)
+    const file = e.dataTransfer.files?.[0]
+    if (file) handleFileSelect(file)
+  }, [handleFileSelect])
+
+  const attachUpload = useCallback(() => {
+    if (!uploadPreview || !activeThread) return
+    // In offline mode: send as a message with image flag
+    const msg: Message = {
+      id: `${Date.now()}`,
+      sender: profile?.role === 'artist' ? 'artist' : 'writer',
+      name: profile?.name ?? 'Artist',
+      image: true,
+      imageLabel: 'Draft artwork',
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    }
+    setLiveMessages(prev => [...prev, msg])
+    setUploadPreview(null)
+    setShowUpload(false)
+  }, [uploadPreview, activeThread, profile])
 
   useEffect(() => {
     const first = episodeThreads[0]?.id ?? ''
@@ -262,15 +296,70 @@ export default function Collaboration() {
           <div ref={messagesEndRef} />
         </div>
 
+        {/* Upload Draft panel */}
+        {showUpload && (
+          <div className="px-6 pt-3 border-t border-ink-border bg-ink-dark/50">
+            <div
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={handleDrop}
+              className={`rounded-lg border-2 border-dashed transition-colors ${dragOver ? 'border-ink-gold bg-ink-gold/5' : 'border-ink-border bg-ink-panel'}`}
+            >
+              {uploadPreview ? (
+                <div className="p-3 space-y-2">
+                  <img src={uploadPreview} alt="Preview" className="w-full max-h-48 object-contain rounded" />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={attachUpload}
+                      className="flex-1 py-1.5 rounded text-xs font-sans bg-ink-gold text-ink-black font-semibold hover:bg-ink-gold-dim transition-colors"
+                    >
+                      Send as Draft
+                    </button>
+                    <button
+                      onClick={() => { setUploadPreview(null); setShowUpload(false) }}
+                      className="px-3 py-1.5 rounded text-xs font-sans text-ink-muted hover:text-ink-text transition-colors"
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={() => uploadInputRef.current?.click()}
+                  className="w-full py-5 flex flex-col items-center gap-2 text-ink-muted hover:text-ink-text transition-colors"
+                >
+                  <Image size={20} />
+                  <span className="text-xs font-sans">Drop artwork here or click to select</span>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
+
         {/* Input */}
         <div className="px-6 py-3 border-t border-ink-border bg-ink-dark/50">
           <div className="flex items-center gap-3 bg-ink-panel rounded-lg px-4 py-2.5 border border-ink-border">
-            <button aria-label="Attach file" className="text-ink-muted hover:text-ink-text transition-colors">
+            <button
+              aria-label="Attach file"
+              onClick={() => uploadInputRef.current?.click()}
+              className="text-ink-muted hover:text-ink-text transition-colors"
+            >
               <Paperclip size={16} />
             </button>
-            <button aria-label="Attach image" className="text-ink-muted hover:text-ink-text transition-colors">
+            <button
+              aria-label="Upload draft artwork"
+              onClick={() => setShowUpload(v => !v)}
+              className={`transition-colors ${showUpload ? 'text-ink-gold' : 'text-ink-muted hover:text-ink-text'}`}
+            >
               <Image size={16} />
             </button>
+            <input
+              ref={uploadInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) { handleFileSelect(f); setShowUpload(true) } }}
+            />
             <input
               type="text"
               placeholder="Type a message..."

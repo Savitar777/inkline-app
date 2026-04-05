@@ -2,7 +2,16 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Grip, Plus, Trash2, MessageCircle, Quote, Volume2 } from '../icons'
 import Tag from './Tag'
 import ContentBlockView from './ContentBlockView'
-import type { Panel, ContentBlock } from '../types'
+import type { Panel, ContentBlock, PanelStatus } from '../types'
+
+const STATUS_BADGE: Record<PanelStatus, { label: string; color: string }> = {
+  draft:             { label: 'Draft',            color: 'text-ink-muted border-ink-muted/30 bg-ink-muted/10' },
+  submitted:         { label: 'Submitted',        color: 'text-status-submitted border-status-submitted/30 bg-status-submitted/10' },
+  in_progress:       { label: 'In Progress',      color: 'text-status-progress border-status-progress/30 bg-status-progress/10' },
+  draft_received:    { label: 'Draft Received',   color: 'text-status-draft border-status-draft/30 bg-status-draft/10' },
+  changes_requested: { label: 'Changes Requested', color: 'text-red-400 border-red-400/30 bg-red-400/10' },
+  approved:          { label: 'Approved',         color: 'text-status-approved border-status-approved/30 bg-status-approved/10' },
+}
 
 const SHOT_TYPES = ['Wide / Establishing', 'Wide', 'Medium-wide', 'Medium', 'Close-up', 'Extreme close-up', 'Over-the-shoulder', 'POV', 'Insert']
 
@@ -10,7 +19,7 @@ interface Props {
   panel: Panel
   episodeId: string
   pageId: string
-  onUpdate: (panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description'>>) => void
+  onUpdate: (panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
   onDelete: (panelId: string) => void
   onAddBlock: (panelId: string, type: ContentBlock['type']) => void
   onUpdateBlock: (panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
@@ -45,6 +54,16 @@ export default function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelet
           <Grip size={10} className="text-ink-muted shrink-0" />
           {open ? <ChevronDown size={14} className="text-tag-panel shrink-0" /> : <ChevronRight size={14} className="text-tag-panel shrink-0" />}
           <Tag type="panel">Panel {panel.number}</Tag>
+
+          {/* Status badge */}
+          {panel.status && panel.status !== 'draft' && (() => {
+            const s = STATUS_BADGE[panel.status!]
+            return (
+              <span className={`text-[9px] uppercase tracking-wider font-sans border rounded px-1.5 py-0.5 leading-none ${s.color}`}>
+                {s.label}
+              </span>
+            )
+          })()}
 
           {/* Shot type picker */}
           <div className="relative" onClick={e => e.stopPropagation()}>

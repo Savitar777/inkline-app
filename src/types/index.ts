@@ -6,12 +6,16 @@ export interface ContentBlock {
   text: string
 }
 
+export type PanelStatus = 'draft' | 'submitted' | 'in_progress' | 'draft_received' | 'changes_requested' | 'approved'
+
 export interface Panel {
   id: string
   number: number
   shot: string
   description: string
   content: ContentBlock[]
+  status?: PanelStatus
+  assetUrl?: string
 }
 
 export interface Page {
