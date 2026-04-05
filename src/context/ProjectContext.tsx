@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react'
 import type { Project, Episode, Page, Panel, ContentBlock, Character } from '../types'
 import { defaultProject } from '../data/mockData'
+import * as svc from '../services/projectService'
 
 const genId = () => `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`
 
@@ -62,7 +63,13 @@ const emptyProject = (): Project => ({
   threads: [],
 })
 
-export function ProjectProvider({ children }: { children: ReactNode }) {
+interface ProviderProps {
+  children: ReactNode
+  projectId?: string
+  userId?: string
+}
+
+export function ProjectProvider({ children, projectId, userId: _userId }: ProviderProps) {
   const [project, setProject] = useState<Project>(loadProject)
   const [activeEpisodeId, setActiveEpisodeId] = useState<string>(
     () => {
@@ -70,7 +77,22 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       return p.episodes[0]?.id ?? ''
     }
   )
+  const [syncing, setSyncing] = useState(false)
 
+  // Load from Supabase when a real projectId is provided
+  useEffect(() => {
+    if (!projectId) return
+    setSyncing(true)
+    svc.fetchProject(projectId).then(remote => {
+      if (remote) {
+        setProject(remote)
+        setActiveEpisodeId(remote.episodes[0]?.id ?? '')
+      }
+      setSyncing(false)
+    })
+  }, [projectId])
+
+  // Persist to localStorage as offline fallback (debounced)
   useEffect(() => {
     const timer = setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(project))
@@ -80,7 +102,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
 
   const setProjectTitle = useCallback((title: string) => {
     setProject(p => ({ ...p, title }))
-  }, [])
+    if (projectId) svc.updateProjectTitle(projectId, title)
+  }, [projectId])
 
   const newProject = useCallback(() => {
     const fresh = emptyProject()
@@ -115,17 +138,19 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
     setProject(p => {
       const number = p.episodes.length + 1
       const ep: Episode = { id, number, title: `Episode ${number}`, brief: '', pages: [] }
+      if (projectId) svc.createEpisode(projectId, number)
       return { ...p, episodes: [...p.episodes, ep] }
     })
     setActiveEpisodeId(id)
-  }, [])
+  }, [projectId])
 
   const updateEpisode = useCallback((episodeId: string, updates: Partial<Pick<Episode, 'title' | 'brief'>>) => {
     setProject(p => ({
       ...p,
       episodes: p.episodes.map(ep => ep.id === episodeId ? { ...ep, ...updates } : ep),
     }))
-  }, [])
+    if (projectId) svc.updateEpisode(episodeId, updates)
+  }, [projectId])
 
   const deleteEpisode = useCallback((episodeId: string) => {
     setProject(p => {
@@ -137,7 +162,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
       const remaining = project.episodes.filter(ep => ep.id !== episodeId)
       return remaining[0]?.id ?? ''
     })
-  }, [project.episodes])
+    if (projectId) svc.deleteEpisode(episodeId)
+  }, [project.episodes, projectId])
 
   // ── Page ─────────────────────────────────────────────────────────────────
 
@@ -148,10 +174,11 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         if (ep.id !== episodeId) return ep
         const number = ep.pages.length + 1
         const page: Page = { id: genId(), number, layoutNote: '', panels: [] }
+        if (projectId) svc.createPage(episodeId, number)
         return { ...ep, pages: [...ep.pages, page] }
       }),
     }))
-  }, [])
+  }, [projectId])
 
   const updatePage = useCallback((episodeId: string, pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => {
     setProject(p => ({
@@ -161,7 +188,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         return { ...ep, pages: ep.pages.map(pg => pg.id === pageId ? { ...pg, ...updates } : pg) }
       }),
     }))
-  }, [])
+    if (projectId) svc.updatePage(pageId, { layout_note: updates.layoutNote })
+  }, [projectId])
 
   const deletePage = useCallback((episodeId: string, pageId: string) => {
     setProject(p => ({
@@ -172,7 +200,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         return { ...ep, pages }
       }),
     }))
-  }, [])
+    if (projectId) svc.deletePage(pageId)
+  }, [projectId])
 
   // ── Panel ─────────────────────────────────────────────────────────────────
 
@@ -187,12 +216,13 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
             if (pg.id !== pageId) return pg
             const number = pg.panels.length + 1
             const panel: Panel = { id: genId(), number, shot, description: '', content: [] }
+            if (projectId) svc.createPanel(pageId, number, shot)
             return { ...pg, panels: [...pg.panels, panel] }
           }),
         }
       }),
     }))
-  }, [])
+  }, [projectId])
 
   const updatePanel = useCallback((episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description'>>) => {
     setProject(p => ({
@@ -208,7 +238,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       }),
     }))
-  }, [])
+    if (projectId) svc.updatePanel(panelId, updates)
+  }, [projectId])
 
   const deletePanel = useCallback((episodeId: string, pageId: string, panelId: string) => {
     setProject(p => ({
@@ -225,7 +256,8 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       }),
     }))
-  }, [])
+    if (projectId) svc.deletePanel(panelId)
+  }, [projectId])
 
   // ── Content Block ─────────────────────────────────────────────────────────
 
@@ -243,6 +275,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
               panels: pg.panels.map(pan => {
                 if (pan.id !== panelId) return pan
                 const block: ContentBlock = { id: genId(), type, text: '' }
+                if (projectId) svc.createContentBlock(panelId, type, pan.content.length)
                 return { ...pan, content: [...pan.content, block] }
               }),
             }
@@ -250,7 +283,7 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       }),
     }))
-  }, [])
+  }, [projectId])
 
   const updateContentBlock = useCallback((
     episodeId: string, pageId: string, panelId: string, blockId: string,
@@ -275,7 +308,12 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       }),
     }))
-  }, [])
+    if (projectId) svc.updateContentBlock(blockId, {
+      character: updates.character ?? null,
+      parenthetical: updates.parenthetical ?? null,
+      text: updates.text,
+    })
+  }, [projectId])
 
   const deleteContentBlock = useCallback((episodeId: string, pageId: string, panelId: string, blockId: string) => {
     setProject(p => ({
@@ -297,24 +335,39 @@ export function ProjectProvider({ children }: { children: ReactNode }) {
         }
       }),
     }))
-  }, [])
+    if (projectId) svc.deleteContentBlock(blockId)
+  }, [projectId])
 
   // ── Character ─────────────────────────────────────────────────────────────
 
   const addCharacter = useCallback((char: Omit<Character, 'id'>) => {
     setProject(p => ({ ...p, characters: [...p.characters, { id: genId(), ...char }] }))
-  }, [])
+    if (projectId) svc.createCharacter(projectId, char)
+  }, [projectId])
 
   const updateCharacter = useCallback((id: string, updates: Partial<Omit<Character, 'id'>>) => {
     setProject(p => ({
       ...p,
       characters: p.characters.map(c => c.id === id ? { ...c, ...updates } : c),
     }))
-  }, [])
+    if (projectId) svc.updateCharacter(id, updates)
+  }, [projectId])
 
   const deleteCharacter = useCallback((id: string) => {
     setProject(p => ({ ...p, characters: p.characters.filter(c => c.id !== id) }))
-  }, [])
+    if (projectId) svc.deleteCharacter(id)
+  }, [projectId])
+
+  if (syncing) {
+    return (
+      <div className="min-h-screen bg-ink-black flex items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 rounded-md bg-ink-gold/20 border border-ink-gold/30 animate-pulse" />
+          <span className="text-xs text-ink-muted font-sans">Loading project…</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <ProjectContext.Provider value={{

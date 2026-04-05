@@ -1,9 +1,12 @@
 import { useState, useRef } from 'react'
-import { PenLine, MessageSquare, Layers, User, Plus, Download, Upload } from './icons'
+import { PenLine, MessageSquare, Layers, User, Download, Upload, ChevronLeft } from './icons'
 import ScriptEditor from './views/ScriptEditor'
 import Collaboration from './views/Collaboration'
 import CompileExport from './views/CompileExport'
+import ProjectDashboard from './views/ProjectDashboard'
 import { ProjectProvider, useProject } from './context/ProjectContext'
+import { AuthProvider, useAuth } from './context/AuthContext'
+import AuthGuard from './components/AuthGuard'
 
 type View = 'editor' | 'collab' | 'compile'
 
@@ -13,8 +16,15 @@ const tabs: { id: View; label: string; icon: React.ReactNode }[] = [
   { id: 'compile', label: 'Compile & Export', icon: <Layers size={16} /> },
 ]
 
-function NavBar({ activeView, setActiveView }: { activeView: View; setActiveView: (v: View) => void }) {
-  const { project, setProjectTitle, newProject, exportProject, importProject } = useProject()
+function NavBar({
+  activeView, setActiveView, onBackToDashboard,
+}: {
+  activeView: View
+  setActiveView: (v: View) => void
+  onBackToDashboard: () => void
+}) {
+  const { project, setProjectTitle, exportProject, importProject } = useProject()
+  const { profile, signOut } = useAuth()
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState(project.title)
   const importRef = useRef<HTMLInputElement>(null)
@@ -33,20 +43,42 @@ function NavBar({ activeView, setActiveView }: { activeView: View; setActiveView
     e.target.value = ''
   }
 
-  const handleNew = () => {
-    if (confirm('Start a new project? Unsaved changes will be lost.')) newProject()
-  }
-
   return (
     <header className="flex items-center justify-between px-6 h-14 border-b border-ink-border bg-ink-dark shrink-0">
-      <div className="flex items-center gap-6">
-        {/* Logo */}
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="w-7 h-7 rounded-md bg-ink-gold flex items-center justify-center">
-            <PenLine size={15} className="text-ink-black" strokeWidth={2.5} />
+      <div className="flex items-center gap-4">
+        {/* Back to dashboard */}
+        <button
+          aria-label="Back to projects"
+          onClick={onBackToDashboard}
+          className="flex items-center gap-1.5 text-ink-muted hover:text-ink-text transition-colors"
+        >
+          <ChevronLeft size={14} />
+          <div className="w-6 h-6 rounded bg-ink-gold/20 flex items-center justify-center">
+            <PenLine size={12} className="text-ink-gold" strokeWidth={2.5} />
           </div>
-          <span className="font-serif text-xl text-ink-light tracking-wide">Inkline</span>
-        </div>
+        </button>
+
+        {/* Project title */}
+        {editingTitle ? (
+          <input
+            className="bg-transparent border-b border-ink-gold/60 outline-none font-serif text-base text-ink-light"
+            value={titleDraft}
+            onChange={e => setTitleDraft(e.target.value)}
+            onBlur={saveTitle}
+            onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
+            autoFocus
+          />
+        ) : (
+          <button
+            aria-label="Edit project title"
+            onClick={() => { setTitleDraft(project.title); setEditingTitle(true) }}
+            className="font-serif text-base text-ink-text hover:text-ink-light transition-colors"
+          >
+            {project.title}
+          </button>
+        )}
+
+        <div className="w-px h-4 bg-ink-border mx-1" />
 
         {/* Tabs */}
         <nav className="flex items-center gap-1" aria-label="Main navigation">
@@ -69,38 +101,6 @@ function NavBar({ activeView, setActiveView }: { activeView: View; setActiveView
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        {/* Project title */}
-        {editingTitle ? (
-          <input
-            className="bg-transparent border-b border-ink-gold/60 outline-none text-xs font-sans text-ink-light w-40"
-            value={titleDraft}
-            onChange={e => setTitleDraft(e.target.value)}
-            onBlur={saveTitle}
-            onKeyDown={e => { if (e.key === 'Enter') saveTitle(); if (e.key === 'Escape') setEditingTitle(false) }}
-            autoFocus
-          />
-        ) : (
-          <button
-            aria-label="Edit project title"
-            onClick={() => { setTitleDraft(project.title); setEditingTitle(true) }}
-            className="text-xs text-ink-text font-sans hover:text-ink-light transition-colors"
-          >
-            {project.title}
-          </button>
-        )}
-
-        <div className="w-px h-4 bg-ink-border" />
-
-        {/* New project */}
-        <button
-          aria-label="New project"
-          onClick={handleNew}
-          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded text-xs font-sans text-ink-text hover:text-ink-light hover:bg-ink-panel transition-colors"
-        >
-          <Plus size={12} /> New
-        </button>
-
-        {/* Export */}
         <button
           aria-label="Export project as JSON"
           onClick={exportProject}
@@ -108,8 +108,6 @@ function NavBar({ activeView, setActiveView }: { activeView: View; setActiveView
         >
           <Download size={12} /> Export
         </button>
-
-        {/* Import */}
         <button
           aria-label="Import project from JSON"
           onClick={() => importRef.current?.click()}
@@ -121,33 +119,73 @@ function NavBar({ activeView, setActiveView }: { activeView: View; setActiveView
 
         <div className="w-px h-4 bg-ink-border" />
 
-        <div className="w-8 h-8 rounded-full bg-ink-muted flex items-center justify-center">
-          <User size={14} className="text-ink-text" />
-        </div>
+        {profile ? (
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-ink-text font-sans">{profile.name}</span>
+            <button
+              onClick={signOut}
+              className="text-[11px] text-ink-muted font-sans hover:text-ink-text transition-colors"
+            >
+              Sign out
+            </button>
+          </div>
+        ) : (
+          <div className="w-8 h-8 rounded-full bg-ink-muted/30 flex items-center justify-center">
+            <User size={14} className="text-ink-text" />
+          </div>
+        )}
       </div>
     </header>
   )
 }
 
 function AppShell() {
+  const { user } = useAuth()
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<View>('editor')
 
+  if (!activeProjectId) {
+    if (user) {
+      return <ProjectDashboard onOpenProject={id => setActiveProjectId(id)} />
+    }
+    return (
+      <ProjectProvider>
+        <div className="flex flex-col h-screen bg-ink-black">
+          <NavBar activeView={activeView} setActiveView={setActiveView} onBackToDashboard={() => {}} />
+          <main className="flex-1 overflow-hidden">
+            {activeView === 'editor' && <ScriptEditor />}
+            {activeView === 'collab' && <Collaboration />}
+            {activeView === 'compile' && <CompileExport />}
+          </main>
+        </div>
+      </ProjectProvider>
+    )
+  }
+
   return (
-    <div className="flex flex-col h-screen bg-ink-black">
-      <NavBar activeView={activeView} setActiveView={setActiveView} />
-      <main className="flex-1 overflow-hidden">
-        {activeView === 'editor' && <ScriptEditor />}
-        {activeView === 'collab' && <Collaboration />}
-        {activeView === 'compile' && <CompileExport />}
-      </main>
-    </div>
+    <ProjectProvider projectId={activeProjectId} userId={user?.id}>
+      <div className="flex flex-col h-screen bg-ink-black">
+        <NavBar
+          activeView={activeView}
+          setActiveView={setActiveView}
+          onBackToDashboard={() => setActiveProjectId(null)}
+        />
+        <main className="flex-1 overflow-hidden">
+          {activeView === 'editor' && <ScriptEditor />}
+          {activeView === 'collab' && <Collaboration />}
+          {activeView === 'compile' && <CompileExport />}
+        </main>
+      </div>
+    </ProjectProvider>
   )
 }
 
 export default function App() {
   return (
-    <ProjectProvider>
-      <AppShell />
-    </ProjectProvider>
+    <AuthProvider>
+      <AuthGuard>
+        <AppShell />
+      </AuthGuard>
+    </AuthProvider>
   )
 }

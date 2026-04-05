@@ -24,6 +24,7 @@ export const Layers = (p: IconProps) => <I2 {...p} paths={["M12 2 2 7l10 5 10-5-
 export const User = (p: IconProps) => <I2 {...p} paths={["M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2", "M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z"]} />
 export const ChevronDown = (p: IconProps) => <I {...p} d="m6 9 6 6 6-6" />
 export const ChevronRight = (p: IconProps) => <I {...p} d="m9 18 6-6-6-6" />
+export const ChevronLeft = (p: IconProps) => <I {...p} d="m15 18-6-6 6-6" />
 export const BookOpen = (p: IconProps) => <I2 {...p} paths={["M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z", "M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"]} />
 export const FileText = (p: IconProps) => <I2 {...p} paths={["M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7z", "M14 2v4a2 2 0 0 0 2 2h4", "M10 9H8", "M16 13H8", "M16 17H8"]} />
 export const SquareStack = (p: IconProps) => <I2 {...p} paths={["M4 10c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2", "M10 16c-1.1 0-2-.9-2-2v-4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2", "M16 22c-1.1 0-2-.9-2-2v-4c0-1.1.9-2 2-2h4c1.1 0 2 .9 2 2v4c0 1.1-.9 2-2 2z"]} />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import {
   Send,
   Paperclip,
@@ -10,7 +10,10 @@ import {
   ChevronRight,
 } from '../icons'
 import { useProject } from '../context/ProjectContext'
-import type { Thread } from '../types'
+import { useAuth } from '../context/AuthContext'
+import { supabase } from '../lib/supabase'
+import { sendMessage, inviteMember } from '../services/projectService'
+import type { Thread, Message } from '../types'
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   submitted: { label: 'Submitted', color: 'text-status-submitted bg-status-submitted/10 border-status-submitted/30', icon: <Send size={10} /> },
@@ -29,6 +32,7 @@ const collaborators = [
 
 export default function Collaboration() {
   const { project, activeEpisodeId } = useProject()
+  const { user, profile } = useAuth()
 
   const episodeThreads: Thread[] = activeEpisodeId
     ? project.threads.filter(t => t.episodeId === activeEpisodeId)
@@ -38,7 +42,13 @@ export default function Collaboration() {
 
   const [activeThread, setActiveThread] = useState<string>(() => episodeThreads[0]?.id ?? '')
   const [inputText, setInputText] = useState('')
-  // inputText wired to the message input below
+  const [sending, setSending] = useState(false)
+  const [liveMessages, setLiveMessages] = useState<Message[]>([])
+  const [showInvite, setShowInvite] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('artist')
+  const [inviteStatus, setInviteStatus] = useState<string | null>(null)
+  const [inviting, setInviting] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -46,11 +56,67 @@ export default function Collaboration() {
     setActiveThread(first)
   }, [activeEpisodeId])
 
+  // Sync live messages when thread changes
+  useEffect(() => {
+    const base = episodeThreads.find(t => t.id === activeThread)?.messages ?? []
+    setLiveMessages(base)
+  }, [activeThread, project.threads])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [activeThread])
+  }, [liveMessages])
+
+  // Supabase Realtime — subscribe to new messages on the active thread
+  useEffect(() => {
+    if (!activeThread || !user) return
+    const channel = supabase
+      .channel(`messages:${activeThread}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${activeThread}` },
+        payload => {
+          const row = payload.new as any
+          const msg: Message = {
+            id: row.id,
+            sender: row.sender_id === user.id ? 'writer' : 'artist',
+            name: profile?.name ?? row.sender_id,
+            text: row.text ?? undefined,
+            image: !!row.attachment_url,
+            imageLabel: row.attachment_url ?? undefined,
+            timestamp: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          }
+          setLiveMessages(prev => [...prev, msg])
+        },
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [activeThread, user])
+
+  const handleSend = useCallback(async () => {
+    const text = inputText.trim()
+    if (!text || sending) return
+    setSending(true)
+    setInputText('')
+
+    if (user && activeThread) {
+      // Online mode — send via Supabase (real-time will add it to liveMessages)
+      await sendMessage(activeThread, user.id, text)
+    } else {
+      // Offline mode — append locally
+      const msg: Message = {
+        id: `${Date.now()}`,
+        sender: 'writer',
+        name: profile?.name ?? 'You',
+        text,
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      }
+      setLiveMessages(prev => [...prev, msg])
+    }
+    setSending(false)
+  }, [inputText, sending, user, activeThread, profile])
 
   const thread = episodeThreads.find(t => t.id === activeThread) ?? null
+  const displayMessages = liveMessages.length > 0 ? liveMessages : (thread?.messages ?? [])
 
   const pageTracker = activeEpisode?.pages.map((pg, i) => ({
     page: pg.number,
@@ -155,7 +221,7 @@ export default function Collaboration() {
 
         {/* Messages */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-          {thread.messages.map((msg) => (
+          {displayMessages.map((msg) => (
             <div
               key={msg.id}
               className={`flex gap-3 ${msg.sender === 'writer' ? '' : ''}`}
@@ -210,9 +276,15 @@ export default function Collaboration() {
               placeholder="Type a message..."
               value={inputText}
               onChange={e => setInputText(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend() }}
               className="flex-1 bg-transparent text-sm font-sans text-ink-light placeholder:text-ink-muted outline-none"
             />
-            <button aria-label="Send message" className="w-7 h-7 rounded-md bg-ink-gold flex items-center justify-center hover:bg-ink-gold-dim transition-colors">
+            <button
+              aria-label="Send message"
+              onClick={handleSend}
+              disabled={sending || !inputText.trim()}
+              className="w-7 h-7 rounded-md bg-ink-gold flex items-center justify-center hover:bg-ink-gold-dim transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+            >
               <Send size={13} className="text-ink-black" />
             </button>
           </div>
@@ -223,9 +295,60 @@ export default function Collaboration() {
 
       {/* Right — Collaborators */}
       <aside className="w-56 border-l border-ink-border bg-ink-dark shrink-0 flex flex-col">
-        <div className="px-4 py-3 border-b border-ink-border">
+        <div className="px-4 py-3 border-b border-ink-border flex items-center justify-between">
           <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Team</span>
+          {user && (
+            <button
+              aria-label="Invite collaborator"
+              onClick={() => { setShowInvite(v => !v); setInviteStatus(null) }}
+              className="text-ink-muted hover:text-ink-gold transition-colors"
+            >
+              <svg width={14} height={14} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 12h14M12 5v14" />
+              </svg>
+            </button>
+          )}
         </div>
+        {showInvite && (
+          <div className="px-4 py-3 border-b border-ink-border space-y-2">
+            <input
+              type="email"
+              placeholder="Email address"
+              value={inviteEmail}
+              onChange={e => setInviteEmail(e.target.value)}
+              className="w-full bg-ink-panel border border-ink-border rounded px-2.5 py-1.5 text-xs font-sans text-ink-light placeholder:text-ink-muted outline-none focus:border-ink-gold/50 transition-colors"
+            />
+            <select
+              value={inviteRole}
+              onChange={e => setInviteRole(e.target.value)}
+              className="w-full bg-ink-panel border border-ink-border rounded px-2.5 py-1.5 text-xs font-sans text-ink-text outline-none focus:border-ink-gold/50 transition-colors"
+            >
+              <option value="artist">Artist</option>
+              <option value="colorist">Colorist</option>
+              <option value="letterer">Letterer</option>
+              <option value="writer">Writer</option>
+            </select>
+            {inviteStatus && (
+              <p className={`text-[10px] font-sans ${inviteStatus === 'sent' ? 'text-status-approved' : 'text-red-400'}`}>
+                {inviteStatus === 'sent' ? 'Invitation sent.' : inviteStatus}
+              </p>
+            )}
+            <button
+              disabled={inviting || !inviteEmail.trim()}
+              onClick={async () => {
+                if (!project.id) return
+                setInviting(true)
+                const err = await inviteMember(project.id, inviteEmail.trim(), inviteRole)
+                setInviteStatus(err ?? 'sent')
+                if (!err) { setInviteEmail(''); setInviteRole('artist') }
+                setInviting(false)
+              }}
+              className="w-full py-1.5 rounded text-[11px] font-sans bg-ink-gold text-ink-black font-semibold hover:bg-ink-gold-dim transition-colors disabled:opacity-50"
+            >
+              {inviting ? 'Sending…' : 'Send Invite'}
+            </button>
+          </div>
+        )}
         <div className="flex-1 overflow-y-auto py-2">
           {collaborators.map((c) => (
             <div key={c.name} className="px-4 py-3 flex items-center gap-3">
