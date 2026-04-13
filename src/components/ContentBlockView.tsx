@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { MessageCircle, Quote, Volume2, Trash2, Check, X } from '../icons'
 import type { ContentBlock } from '../types'
 
@@ -11,7 +11,7 @@ interface Props {
   onDelete: (blockId: string) => void
 }
 
-export default function ContentBlockView({ block, onUpdate, onDelete }: Props) {
+export default memo(function ContentBlockView({ block, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState({ character: block.character ?? '', parenthetical: block.parenthetical ?? '', text: block.text })
 
@@ -136,4 +136,4 @@ export default function ContentBlockView({ block, onUpdate, onDelete }: Props) {
       </div>
     </div>
   )
-}
+})

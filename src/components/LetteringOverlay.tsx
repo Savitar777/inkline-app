@@ -32,7 +32,7 @@ function bubbleClasses(type: ContentBlock['type'], font: BubbleFont): string {
     mono: 'font-mono',
     comic: 'font-sans',
   }
-  const base = `absolute select-none cursor-move ${fontClass[font]}`
+  const base = `absolute select-none cursor-move touch-none ${fontClass[font]}`
 
   switch (type) {
     case 'dialogue':
@@ -52,41 +52,60 @@ export default function LetteringOverlay({ bubbles, onChange, scale, font, conta
   const [dragging, setDragging] = useState<string | null>(null)
   const dragOffset = useRef({ dx: 0, dy: 0 })
 
-  const handleMouseDown = useCallback((e: React.MouseEvent, bubbleId: string) => {
-    e.preventDefault()
-    e.stopPropagation()
+  const startDrag = useCallback((clientX: number, clientY: number, bubbleId: string) => {
     const bubble = bubbles.find(b => b.id === bubbleId)
     if (!bubble || !containerRef.current) return
 
     const rect = containerRef.current.getBoundingClientRect()
     dragOffset.current = {
-      dx: e.clientX - rect.left - bubble.x * scale,
-      dy: e.clientY - rect.top - bubble.y * scale,
+      dx: clientX - rect.left - bubble.x * scale,
+      dy: clientY - rect.top - bubble.y * scale,
     }
     setDragging(bubbleId)
   }, [bubbles, scale, containerRef])
 
+  const handleMouseDown = useCallback((e: React.MouseEvent, bubbleId: string) => {
+    e.preventDefault()
+    e.stopPropagation()
+    startDrag(e.clientX, e.clientY, bubbleId)
+  }, [startDrag])
+
+  const handleTouchStart = useCallback((e: React.TouchEvent, bubbleId: string) => {
+    e.stopPropagation()
+    const touch = e.touches[0]
+    startDrag(touch.clientX, touch.clientY, bubbleId)
+  }, [startDrag])
+
   useEffect(() => {
     if (!dragging) return
 
-    const handleMove = (e: MouseEvent) => {
+    const moveTo = (clientX: number, clientY: number) => {
       if (!containerRef.current) return
       const rect = containerRef.current.getBoundingClientRect()
-      const newX = (e.clientX - rect.left - dragOffset.current.dx) / scale
-      const newY = (e.clientY - rect.top - dragOffset.current.dy) / scale
+      const newX = (clientX - rect.left - dragOffset.current.dx) / scale
+      const newY = (clientY - rect.top - dragOffset.current.dy) / scale
 
       onChange(bubbles.map(b =>
         b.id === dragging ? { ...b, x: Math.max(0, newX), y: Math.max(0, newY) } : b
       ))
     }
 
+    const handleMove = (e: MouseEvent) => moveTo(e.clientX, e.clientY)
+    const handleTouchMove = (e: TouchEvent) => {
+      e.preventDefault()
+      moveTo(e.touches[0].clientX, e.touches[0].clientY)
+    }
     const handleUp = () => setDragging(null)
 
     window.addEventListener('mousemove', handleMove)
     window.addEventListener('mouseup', handleUp)
+    window.addEventListener('touchmove', handleTouchMove, { passive: false })
+    window.addEventListener('touchend', handleUp)
     return () => {
       window.removeEventListener('mousemove', handleMove)
       window.removeEventListener('mouseup', handleUp)
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleUp)
     }
   }, [dragging, bubbles, onChange, scale, containerRef])
 
@@ -107,6 +126,7 @@ export default function LetteringOverlay({ bubbles, onChange, scale, font, conta
             opacity: dragging === b.id ? 0.85 : 1,
           }}
           onMouseDown={e => handleMouseDown(e, b.id)}
+          onTouchStart={e => handleTouchStart(e, b.id)}
         >
           {b.character && b.type === 'dialogue' && (
             <div

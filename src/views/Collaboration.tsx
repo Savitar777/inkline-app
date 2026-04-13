@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import {
   Send,
   Paperclip,
@@ -8,6 +8,7 @@ import {
   Palette,
   FileText,
   ChevronRight,
+  MessageSquare,
 } from '../icons'
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
@@ -15,8 +16,11 @@ import { useWorkspace } from '../context/WorkspaceContext'
 import { supabase } from '../lib/supabase'
 import { isSupabaseConfigured } from '../lib/supabase'
 import { getDefaultThreadId, getEpisodeById, getEpisodeThreads } from '../domain/selectors'
+import { markThreadRead, getUnreadCounts } from '../domain/unread'
+import MobileDrawer from '../components/MobileDrawer'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 import { formatShortTime } from '../domain/time'
-import { sendMessage, inviteMember, uploadPanelArtwork, fetchCollaborators, updateThreadStatus } from '../services/projectService'
+import { sendMessage, inviteMember, uploadPanelArtwork, fetchCollaborators } from '../services/projectService'
 import type { Collaborator } from '../services/projectService'
 import type { Thread, Message, Panel } from '../types'
 import type { RealtimePostgresInsertPayload, RealtimePresenceState } from '@supabase/supabase-js'
@@ -65,9 +69,12 @@ function applyThreadMessages(
 /* ─── Component ─── */
 
 export default function Collaboration() {
-  const { project, activeEpisodeId, updatePanel } = useProject()
+  const { project, activeEpisodeId, updatePanel, updateThread, addMessage: addMessageToProject } = useProject()
   const { user, profile } = useAuth()
   const { activeThreadId, setActiveThreadId } = useWorkspace()
+  const breakpoint = useBreakpoint()
+  const isMobile = breakpoint === 'mobile'
+  const [showThreadDrawer, setShowThreadDrawer] = useState(false)
 
   const episodeThreads: Thread[] = getEpisodeThreads(project, activeEpisodeId)
   const activeEpisode = getEpisodeById(project, activeEpisodeId)
@@ -98,7 +105,11 @@ export default function Collaboration() {
   const resolvedActiveThread = episodeThreads.some(thread => thread.id === activeThreadId)
     ? activeThreadId ?? defaultThreadId
     : defaultThreadId
-  const senderRole = profile?.role === 'artist' ? 'artist' : 'writer'
+  const senderRole: 'writer' | 'artist' | 'letterer' | 'colorist' =
+    profile?.role === 'artist' ? 'artist'
+    : profile?.role === 'letterer' ? 'letterer'
+    : profile?.role === 'colorist' ? 'colorist'
+    : 'writer'
 
   // All panels from current episode, flattened for the panel picker
   const allPanels: (Panel & { pageNumber: number; pageId: string })[] = activeEpisode
@@ -154,14 +165,14 @@ export default function Collaboration() {
         // Send notification message in thread and update thread status
         const panLabel = pan ? `P${pan.pageNumber}/Panel ${pan.number}` : 'a panel'
         await sendMessage(resolvedActiveThread, user.id, `Uploaded draft artwork for ${panLabel}`, result.url)
-        // Update thread status to draft_received
+        // Update thread status to draft_received (both local + remote)
         const epThread = episodeThreads.find(t => t.id === resolvedActiveThread)
         if (epThread && epThread.status !== 'approved') {
-          updateThreadStatus(resolvedActiveThread, 'draft_received')
+          updateThread(resolvedActiveThread, { status: 'draft_received' })
         }
       }
     } else {
-      // Offline mode: append locally
+      // Offline mode: append locally and persist to project
       const msg: Message = {
         id: createLocalMessageId(),
         sender: senderRole,
@@ -171,6 +182,7 @@ export default function Collaboration() {
         timestamp: formatShortTime(new Date()),
       }
       setLiveMessagesByThread(prev => applyThreadMessages(prev, resolvedActiveThread, messages => [...messages, msg], threadsRef.current))
+      addMessageToProject(resolvedActiveThread, msg)
     }
     setUploadPreview(null)
     setUploadFile(null)
@@ -205,7 +217,7 @@ export default function Collaboration() {
           const senderName = sender?.name ?? row.sender_id?.slice(0, 8)
           const msg: Message = {
             id: row.id,
-            sender: sender?.role === 'artist' ? 'artist' : 'writer',
+            sender: (sender?.role === 'artist' ? 'artist' : sender?.role === 'letterer' ? 'letterer' : sender?.role === 'colorist' ? 'colorist' : 'writer') as Message['sender'],
             name: senderName,
             text: row.text ?? undefined,
             image: !!row.attachment_url,
@@ -276,7 +288,7 @@ export default function Collaboration() {
       }
       setLiveMessagesByThread(prev => applyThreadMessages(prev, resolvedActiveThread, messages => [...messages, localMsg], threadsRef.current))
     } else {
-      // Offline mode — append locally
+      // Offline mode — append locally and persist to project
       const msg: Message = {
         id: createLocalMessageId(),
         sender: senderRole,
@@ -286,6 +298,7 @@ export default function Collaboration() {
       }
       if (resolvedActiveThread) {
         setLiveMessagesByThread(prev => applyThreadMessages(prev, resolvedActiveThread, messages => [...messages, msg], threadsRef.current))
+        addMessageToProject(resolvedActiveThread, msg)
       }
     }
     setSending(false)
@@ -296,10 +309,19 @@ export default function Collaboration() {
     ? (liveMessagesByThread[resolvedActiveThread] ?? thread.messages)
     : []
 
+  // Compute unread badge counts
+  const unreadCounts = getUnreadCounts(episodeThreads)
+
+  // Mark the active thread as read when viewing it
+  useEffect(() => {
+    if (!thread) return
+    const messageCount = liveMessagesByThread[resolvedActiveThread]?.length ?? thread.messages.length
+    markThreadRead(resolvedActiveThread, messageCount)
+  }, [resolvedActiveThread, displayMessages.length, liveMessagesByThread, thread])
+
   // Derive page tracker from real panel statuses
-  const pageTracker = activeEpisode?.pages.map(pg => {
+  const pageTracker = useMemo(() => activeEpisode?.pages.map(pg => {
     const statuses = pg.panels.map(pan => pan.status ?? 'draft')
-    // Page status = worst panel status
     const pageStatus = statuses.includes('draft') ? 'draft'
       : statuses.includes('submitted') ? 'submitted'
       : statuses.includes('in_progress') ? 'in_progress'
@@ -307,17 +329,17 @@ export default function Collaboration() {
       : statuses.includes('draft_received') ? 'draft_received'
       : 'approved'
     return { page: pg.number, status: pageStatus }
-  }) ?? []
+  }) ?? [], [activeEpisode])
 
   // Compute real deliverables from panel data
-  const deliverables = (() => {
+  const deliverables = useMemo(() => {
     const all = allPanels.map(p => p.status ?? 'draft')
     return [
       { label: 'Drafts received', count: all.filter(s => s === 'draft_received').length, icon: <Palette size={11} />, color: 'text-status-draft' },
       { label: 'Approved panels', count: all.filter(s => s === 'approved').length, icon: <CheckCircle2 size={11} />, color: 'text-status-approved' },
       { label: 'Awaiting review', count: all.filter(s => s === 'submitted' || s === 'in_progress').length, icon: <FileText size={11} />, color: 'text-status-submitted' },
     ]
-  })()
+  }, [allPanels])
 
   // Display list: real collaborators or mock fallback
   const displayCollaborators = collaborators.length > 0 ? collaborators : MOCK_COLLABORATORS.map(c => ({
@@ -327,90 +349,122 @@ export default function Collaboration() {
   // Typing indicator names
   const typingNames = collaborators.filter(c => typingUsers.has(c.id)).map(c => c.name.split(' ')[0])
 
-  return (
-    <div className="flex h-full">
-      {/* Left — Thread List */}
-      <aside className="w-72 border-r border-ink-border bg-ink-dark shrink-0 flex flex-col">
-        <div className="px-4 py-3 border-b border-ink-border">
-          <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Threads</span>
-        </div>
-        <div className="flex-1 overflow-y-auto">
-          {episodeThreads.length === 0 && (
-            <p className="px-4 py-6 text-xs text-ink-muted font-sans italic text-center">No threads for this episode yet.</p>
-          )}
-          {episodeThreads.map((t) => {
-            const sc = statusConfig[t.status]
+  const threadListContent = (
+    <>
+      <div className="flex-1 overflow-y-auto">
+        {episodeThreads.length === 0 && (
+          <div className="px-4 py-8 text-center">
+            <p className="text-xs text-ink-muted font-sans">No threads for this episode yet.</p>
+            <p className="text-[11px] text-ink-muted/60 font-sans mt-1">Submit pages from the Script Editor to start a thread with your artist.</p>
+          </div>
+        )}
+        {episodeThreads.map((t) => {
+          const sc = statusConfig[t.status]
+          return (
+            <button
+              key={t.id}
+              onClick={() => { setActiveThreadId(t.id); if (isMobile) setShowThreadDrawer(false) }}
+              className={`w-full text-left px-4 py-3 border-b border-ink-border/50 transition-colors ${
+                resolvedActiveThread === t.id ? 'bg-ink-panel' : 'hover:bg-ink-panel/50'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <span className={`text-sm font-sans font-medium ${resolvedActiveThread === t.id ? 'text-ink-light' : 'text-ink-text'}`}>
+                  {t.label}
+                </span>
+                {(unreadCounts[t.id] ?? 0) > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-ink-gold text-ink-black text-[10px] font-mono font-medium flex items-center justify-center">
+                    {unreadCounts[t.id]}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-ink-muted font-sans">{t.pageRange}</span>
+                <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-mono border ${sc.color}`}>
+                  {sc.icon}
+                  {sc.label}
+                </span>
+              </div>
+            </button>
+          )
+        })}
+      </div>
+      {/* Page Tracker */}
+      <div className="px-4 py-3 border-t border-ink-border">
+        <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">{activeEpisode ? `EP${activeEpisode.number} Page Status` : 'Page Status'}</span>
+        <div className="flex gap-1.5 flex-wrap">
+          {pageTracker.map((p) => {
+            const colors: Record<string, string> = {
+              approved: 'bg-status-approved',
+              draft_received: 'bg-status-draft',
+              submitted: 'bg-status-submitted',
+              in_progress: 'bg-status-progress',
+              changes_requested: 'bg-red-400',
+              draft: 'bg-ink-muted/50',
+            }
             return (
-              <button
-                key={t.id}
-                onClick={() => setActiveThreadId(t.id)}
-                className={`w-full text-left px-4 py-3 border-b border-ink-border/50 transition-colors ${
-                  resolvedActiveThread === t.id ? 'bg-ink-panel' : 'hover:bg-ink-panel/50'
-                }`}
-              >
-                <div className="flex items-center justify-between mb-1">
-                  <span className={`text-sm font-sans font-medium ${resolvedActiveThread === t.id ? 'text-ink-light' : 'text-ink-text'}`}>
-                    {t.label}
-                  </span>
-                  {t.unread > 0 && (
-                    <span className="w-4 h-4 rounded-full bg-ink-gold text-ink-black text-[10px] font-mono font-medium flex items-center justify-center">
-                      {t.unread}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-ink-muted font-sans">{t.pageRange}</span>
-                  <span className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-mono border ${sc.color}`}>
-                    {sc.icon}
-                    {sc.label}
-                  </span>
-                </div>
-              </button>
+              <div key={p.page} className="flex flex-col items-center gap-1">
+                <div className={`w-8 h-1.5 rounded-full ${colors[p.status]}`} />
+                <span className="text-[9px] text-ink-muted font-mono">P{p.page}</span>
+              </div>
             )
           })}
         </div>
+      </div>
+    </>
+  )
 
-        {/* Page Tracker */}
-        <div className="px-4 py-3 border-t border-ink-border">
-          <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">{activeEpisode ? `EP${activeEpisode.number} Page Status` : 'Page Status'}</span>
-          <div className="flex gap-1.5 flex-wrap">
-            {pageTracker.map((p) => {
-              const colors: Record<string, string> = {
-                approved: 'bg-status-approved',
-                draft_received: 'bg-status-draft',
-                submitted: 'bg-status-submitted',
-                in_progress: 'bg-status-progress',
-                changes_requested: 'bg-red-400',
-                draft: 'bg-ink-muted/50',
-              }
-              return (
-                <div key={p.page} className="flex flex-col items-center gap-1">
-                  <div className={`w-8 h-1.5 rounded-full ${colors[p.status]}`} />
-                  <span className="text-[9px] text-ink-muted font-mono">P{p.page}</span>
-                </div>
-              )
-            })}
+  return (
+    <div className="flex h-full">
+      {/* Left — Thread List (desktop/tablet) */}
+      {!isMobile && (
+        <aside className="w-72 border-r border-ink-border bg-ink-dark shrink-0 flex flex-col">
+          <div className="px-4 py-3 border-b border-ink-border">
+            <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Threads</span>
           </div>
-        </div>
-      </aside>
+          {threadListContent}
+        </aside>
+      )}
+
+      {/* Mobile thread drawer */}
+      {isMobile && (
+        <MobileDrawer open={showThreadDrawer} onClose={() => setShowThreadDrawer(false)} title="Threads" side="left">
+          {threadListContent}
+        </MobileDrawer>
+      )}
 
       {/* Main — Messages */}
       <div className="flex-1 flex flex-col">
         {!thread ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
+            {isMobile && (
+              <button
+                onClick={() => setShowThreadDrawer(true)}
+                className="mb-4 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-sans text-ink-gold border border-ink-gold/30 hover:bg-ink-gold/10 transition-colors"
+              >
+                <MessageSquare size={13} /> View Threads
+              </button>
+            )}
             <ChevronRight size={32} className="text-ink-muted mb-3 rotate-90" />
             <p className="text-sm text-ink-text font-sans">Select a thread to view messages.</p>
           </div>
         ) : (
           <>
         {/* Thread Header */}
-        <div className="px-6 py-3 border-b border-ink-border bg-ink-dark/50 flex items-center justify-between">
-          <div>
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-sans font-medium text-ink-light">{thread.label}</h3>
-              <ChevronRight size={12} className="text-ink-muted" />
-              <span className="text-xs text-ink-text font-sans">{thread.pageRange}</span>
-            </div>
+        <div className={`${isMobile ? 'px-3' : 'px-6'} py-3 border-b border-ink-border bg-ink-dark/50 flex items-center justify-between`}>
+          <div className="flex items-center gap-2 min-w-0">
+            {isMobile && (
+              <button
+                aria-label="Open threads"
+                onClick={() => setShowThreadDrawer(true)}
+                className="shrink-0 p-1 rounded text-ink-muted hover:text-ink-gold transition-colors"
+              >
+                <MessageSquare size={16} />
+              </button>
+            )}
+            <h3 className="text-sm font-sans font-medium text-ink-light truncate">{thread.label}</h3>
+            {!isMobile && <ChevronRight size={12} className="text-ink-muted shrink-0" />}
+            {!isMobile && <span className="text-xs text-ink-text font-sans">{thread.pageRange}</span>}
           </div>
           <div className="flex items-center gap-2">
             {(() => {
@@ -433,7 +487,10 @@ export default function Collaboration() {
               className={`flex gap-3 ${msg.sender === 'writer' ? '' : ''}`}
             >
               <div className={`w-7 h-7 rounded-full shrink-0 flex items-center justify-center text-[11px] font-mono font-medium ${
-                msg.sender === 'writer' ? 'bg-ink-gold/20 text-ink-gold' : 'bg-tag-page/20 text-tag-page'
+                msg.sender === 'writer' ? 'bg-ink-gold/20 text-ink-gold'
+                : msg.sender === 'letterer' ? 'bg-purple-500/20 text-purple-400'
+                : msg.sender === 'colorist' ? 'bg-emerald-500/20 text-emerald-400'
+                : 'bg-tag-page/20 text-tag-page'
               }`}>
                 {msg.name[0]}
               </div>
@@ -533,9 +590,10 @@ export default function Collaboration() {
         <div className="px-6 py-3 border-t border-ink-border bg-ink-dark/50">
           <div className="flex items-center gap-3 bg-ink-panel rounded-lg px-4 py-2.5 border border-ink-border">
             <button
-              aria-label="Attach file"
-              onClick={() => uploadInputRef.current?.click()}
-              className="text-ink-muted hover:text-ink-text transition-colors"
+              aria-label="Attach file (coming soon)"
+              disabled
+              title="General file attachments coming soon"
+              className="text-ink-muted/40 cursor-not-allowed"
             >
               <Paperclip size={16} />
             </button>
@@ -583,8 +641,8 @@ export default function Collaboration() {
         )}
       </div>
 
-      {/* Right — Collaborators */}
-      <aside className="w-56 border-l border-ink-border bg-ink-dark shrink-0 flex flex-col">
+      {/* Right — Collaborators (desktop/tablet only) */}
+      {!isMobile && <aside className="w-56 border-l border-ink-border bg-ink-dark shrink-0 flex flex-col">
         <div className="px-4 py-3 border-b border-ink-border flex items-center justify-between">
           <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Team</span>
           {user && (
@@ -652,7 +710,13 @@ export default function Collaboration() {
               </div>
               <div>
                 <div className="text-xs font-sans text-ink-light">{c.name}</div>
-                <div className="text-[10px] text-ink-muted font-sans capitalize">{c.role}</div>
+                <div className={`text-[10px] font-sans capitalize ${
+                  c.role === 'writer' ? 'text-ink-gold'
+                  : c.role === 'artist' ? 'text-tag-page'
+                  : c.role === 'letterer' ? 'text-purple-400'
+                  : c.role === 'colorist' ? 'text-emerald-400'
+                  : 'text-ink-muted'
+                }`}>{c.role}</div>
               </div>
             </div>
           ))}
@@ -680,7 +744,7 @@ export default function Collaboration() {
             ))}
           </div>
         </div>
-      </aside>
+      </aside>}
     </div>
   )
 }

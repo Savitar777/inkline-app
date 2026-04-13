@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { defaultProject } from '../data/mockData'
 import * as svc from '../services/projectService'
 import { parseProjectDocument, serializeProjectDocument, type ProjectImportError } from '../domain/validation'
-import type { Character, ContentBlock, Episode, Page, Panel, Project } from '../types'
+import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, Thread } from '../types'
 
 const STORAGE_KEY = 'inkline-project'
 
@@ -16,6 +16,11 @@ export interface ImportProjectResult {
 
 interface ProjectDocumentContextType {
   project: Project
+  loading: boolean
+  canUndo: boolean
+  canRedo: boolean
+  undo: () => void
+  redo: () => void
   setProjectTitle: (title: string) => void
   newProject: () => void
   exportProject: () => void
@@ -35,6 +40,9 @@ interface ProjectDocumentContextType {
   addCharacter: (char: Omit<Character, 'id'>) => void
   updateCharacter: (id: string, updates: Partial<Omit<Character, 'id'>>) => void
   deleteCharacter: (id: string) => void
+  addThread: (thread: Thread) => void
+  updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
+  addMessage: (threadId: string, message: Message) => void
 }
 
 const ProjectDocumentContext = createContext<ProjectDocumentContextType | null>(null)
@@ -64,8 +72,49 @@ interface ProviderProps {
 }
 
 export function ProjectDocumentProvider({ children, projectId }: ProviderProps) {
-  const [project, setProject] = useState<Project>(loadProject)
+  const [project, setProjectRaw] = useState<Project>(loadProject)
+  const [loading, setLoading] = useState(!!projectId)
+  const [historySize, setHistorySize] = useState({ undo: 0, redo: 0 })
   const projectRef = useRef(project)
+  const undoStack = useRef<Project[]>([])
+  const redoStack = useRef<Project[]>([])
+  const MAX_UNDO = 50
+
+  const syncHistorySize = useCallback(() => {
+    setHistorySize({ undo: undoStack.current.length, redo: redoStack.current.length })
+  }, [])
+
+  const setProject = useCallback((updater: Project | ((current: Project) => Project)) => {
+    setProjectRaw(current => {
+      const next = typeof updater === 'function' ? updater(current) : updater
+      undoStack.current = [...undoStack.current.slice(-(MAX_UNDO - 1)), current]
+      redoStack.current = []
+      return next
+    })
+    syncHistorySize()
+  }, [syncHistorySize])
+
+  const undo = useCallback(() => {
+    if (undoStack.current.length === 0) return
+    const prev = undoStack.current[undoStack.current.length - 1]
+    undoStack.current = undoStack.current.slice(0, -1)
+    setProjectRaw(current => {
+      redoStack.current = [...redoStack.current, current]
+      return prev
+    })
+    syncHistorySize()
+  }, [syncHistorySize])
+
+  const redo = useCallback(() => {
+    if (redoStack.current.length === 0) return
+    const next = redoStack.current[redoStack.current.length - 1]
+    redoStack.current = redoStack.current.slice(0, -1)
+    setProjectRaw(current => {
+      undoStack.current = [...undoStack.current, current]
+      return next
+    })
+    syncHistorySize()
+  }, [syncHistorySize])
 
   useEffect(() => {
     projectRef.current = project
@@ -75,17 +124,24 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (!projectId) return
 
     let cancelled = false
+    setLoading(true)
 
     void (async () => {
       const remoteProject = await svc.fetchProject(projectId)
-      if (cancelled || !remoteProject) return
-      setProject(remoteProject)
+      if (cancelled) return
+      if (remoteProject) {
+        undoStack.current = []
+        redoStack.current = []
+        syncHistorySize()
+        setProjectRaw(remoteProject)
+      }
+      setLoading(false)
     })()
 
     return () => {
       cancelled = true
     }
-  }, [projectId])
+  }, [projectId, syncHistorySize])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -103,8 +159,11 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
   }, [projectId])
 
   const newProject = useCallback(() => {
-    setProject(emptyProject())
-  }, [])
+    undoStack.current = []
+    redoStack.current = []
+    syncHistorySize()
+    setProjectRaw(emptyProject())
+  }, [syncHistorySize])
 
   const exportProject = useCallback(() => {
     const blob = new Blob([serializeProjectDocument(project)], { type: 'application/json' })
@@ -119,12 +178,15 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
   const importProject = useCallback((json: string): ImportProjectResult => {
     try {
       const parsed = parseProjectDocument(json)
-      setProject(parsed)
+      undoStack.current = []
+      redoStack.current = []
+      syncHistorySize()
+      setProjectRaw(parsed)
       return { ok: true }
     } catch (error) {
       return { ok: false, error: error as ProjectImportError }
     }
-  }, [])
+  }, [syncHistorySize])
 
   const addEpisode = useCallback(() => {
     const id = genId()
@@ -445,8 +507,42 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     }
   }, [projectId])
 
+  const addThread = useCallback((thread: Thread) => {
+    setProject(current => ({
+      ...current,
+      threads: [...current.threads, thread],
+    }))
+  }, [])
+
+  const updateThread = useCallback((threadId: string, updates: Partial<Pick<Thread, 'status'>>) => {
+    setProject(current => ({
+      ...current,
+      threads: current.threads.map(t => t.id === threadId ? { ...t, ...updates } : t),
+    }))
+
+    if (projectId) {
+      if (updates.status) {
+        void svc.updateThreadStatus(threadId, updates.status)
+      }
+    }
+  }, [projectId])
+
+  const addMessage = useCallback((threadId: string, message: Message) => {
+    setProject(current => ({
+      ...current,
+      threads: current.threads.map(t =>
+        t.id === threadId ? { ...t, messages: [...t.messages, message] } : t
+      ),
+    }))
+  }, [])
+
   const value = useMemo<ProjectDocumentContextType>(() => ({
     project,
+    loading,
+    canUndo: historySize.undo > 0,
+    canRedo: historySize.redo > 0,
+    undo,
+    redo,
     setProjectTitle,
     newProject,
     exportProject,
@@ -466,12 +562,21 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     addCharacter,
     updateCharacter,
     deleteCharacter,
+    addThread,
+    updateThread,
+    addMessage,
   }), [
     addCharacter,
     addContentBlock,
     addEpisode,
+    addMessage,
     addPage,
     addPanel,
+    addThread,
+    historySize,
+    loading,
+    redo,
+    undo,
     deleteCharacter,
     deleteContentBlock,
     deleteEpisode,
@@ -487,6 +592,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     updateEpisode,
     updatePage,
     updatePanel,
+    updateThread,
   ])
 
   return (

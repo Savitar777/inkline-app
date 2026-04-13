@@ -63,8 +63,39 @@ function uuid(): string {
   return crypto.randomUUID()
 }
 
+/* ─── Client-side rate limiting ─── */
+
+function createRateLimiter(maxCalls: number, windowMs: number) {
+  const timestamps: number[] = []
+  return function check(): boolean {
+    const now = Date.now()
+    // Remove expired timestamps
+    while (timestamps.length > 0 && timestamps[0] <= now - windowMs) {
+      timestamps.shift()
+    }
+    if (timestamps.length >= maxCalls) return false
+    timestamps.push(now)
+    return true
+  }
+}
+
+// Max 30 writes per 10 seconds per category
+const writeLimiter = createRateLimiter(30, 10_000)
+// Max 10 invites per minute
+const inviteLimiter = createRateLimiter(10, 60_000)
+// Max 20 messages per minute
+const messageLimiter = createRateLimiter(20, 60_000)
+
+type ErrorCallback = (context: string, error: unknown) => void
+let _onErrorCallback: ErrorCallback | null = null
+
+export function setServiceErrorCallback(cb: ErrorCallback | null): void {
+  _onErrorCallback = cb
+}
+
 function handleError(context: string, error: unknown): void {
   console.error(`[projectService] ${context}:`, error)
+  _onErrorCallback?.(context, error)
 }
 
 /* ─── Project ─── */
@@ -146,7 +177,7 @@ export async function fetchProject(projectId: string): Promise<Project | null> {
       .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
       .map(message => ({
         id: message.id,
-        sender: (message.sender?.role === 'artist' ? 'artist' : 'writer') as Message['sender'],
+        sender: (['artist', 'letterer', 'colorist'].includes(message.sender?.role ?? '') ? message.sender!.role : 'writer') as Message['sender'],
         name: message.sender?.name ?? 'Unknown',
         text: message.text ?? undefined,
         image: !!message.attachment_url,
@@ -211,6 +242,7 @@ export async function updateProjectTitle(projectId: string, title: string) {
 /* ─── Episode ─── */
 
 export async function createEpisode(projectId: string, number: number, id?: string): Promise<string | null> {
+  if (!writeLimiter()) { handleError('createEpisode', new Error('Rate limited — too many operations.')); return null }
   const episodeId = id ?? uuid()
   const { error } = await supabase.from('episodes').insert({
     id: episodeId, project_id: projectId, number, title: `Episode ${number}`, brief: '',
@@ -232,6 +264,7 @@ export async function deleteEpisode(episodeId: string) {
 /* ─── Page ─── */
 
 export async function createPage(episodeId: string, number: number, id?: string): Promise<string | null> {
+  if (!writeLimiter()) { handleError('createPage', new Error('Rate limited — too many operations.')); return null }
   const pageId = id ?? uuid()
   const { error } = await supabase.from('pages').insert({ id: pageId, episode_id: episodeId, number, layout_note: '' })
   if (error) { handleError('createPage', error); return null }
@@ -283,6 +316,7 @@ export async function deletePage(pageId: string) {
 /* ─── Panel ─── */
 
 export async function createPanel(pageId: string, number: number, shot: string, id?: string): Promise<string | null> {
+  if (!writeLimiter()) { handleError('createPanel', new Error('Rate limited — too many operations.')); return null }
   const panelId = id ?? uuid()
   const { error } = await supabase.from('panels').insert({
     id: panelId, page_id: pageId, number, shot, description: '', order: number,
@@ -414,6 +448,7 @@ export async function sendMessage(
   text: string,
   attachmentUrl?: string,
 ): Promise<string | null> {
+  if (!messageLimiter()) { handleError('sendMessage', new Error('Rate limited — too many messages. Please wait.')); return null }
   const row: MessageInsert = {
     thread_id: threadId,
     sender_id: senderId,
@@ -441,6 +476,7 @@ export async function inviteMember(
   email: string,
   role: string,
 ): Promise<string | null> {
+  if (!inviteLimiter()) return 'Rate limited — too many invites. Please wait a moment.'
   // Use RPC function to look up user by email (bypasses restrictive users RLS)
   const { data: invitee, error: lookupErr } = await supabase
     .rpc('find_user_by_email', { lookup_email: email })

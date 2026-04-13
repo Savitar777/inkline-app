@@ -3,10 +3,15 @@ import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'r
 import { getDefaultEpisodeId } from '../domain/selectors'
 import { ProjectDocumentProvider, useProjectDocument, type ImportProjectResult } from './ProjectDocumentContext'
 import { useWorkspace } from './WorkspaceContext'
-import type { Character, ContentBlock, Episode, Page, Panel, Project } from '../types'
+import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, Thread } from '../types'
 
 interface ProjectContextType {
   project: Project
+  loading: boolean
+  canUndo: boolean
+  canRedo: boolean
+  undo: () => void
+  redo: () => void
   activeEpisodeId: string
   setActiveEpisodeId: (id: string) => void
   setProjectTitle: (title: string) => void
@@ -28,6 +33,9 @@ interface ProjectContextType {
   addCharacter: (char: Omit<Character, 'id'>) => void
   updateCharacter: (id: string, updates: Partial<Omit<Character, 'id'>>) => void
   deleteCharacter: (id: string) => void
+  addThread: (thread: Thread) => void
+  updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
+  addMessage: (threadId: string, message: Message) => void
 }
 
 const ProjectContext = createContext<ProjectContextType | null>(null)

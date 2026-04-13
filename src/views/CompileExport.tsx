@@ -20,10 +20,12 @@ import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { generateBubblesFromContent } from '../domain/lettering'
-import { sendMessage, updateThreadStatus } from '../services/projectService'
+import { useNotifications } from '../context/NotificationContext'
+import { sendMessage } from '../services/projectService'
 import type { ExportOptions } from '../services/exportService'
 import { getFormatSpec } from '../lib/assemblyEngine'
 import { getEpisodeById, getReviewablePanels } from '../domain/selectors'
+import { useToast } from '../context/ToastContext'
 import type { PanelStatus } from '../types'
 
 /* ─── Types ─── */
@@ -63,21 +65,38 @@ function panelThumbStatus(status: PanelStatus | undefined): PanelThumb['status']
 }
 
 export default function CompileExport() {
-  const { project, activeEpisodeId, updatePanel } = useProject()
-  const { user } = useAuth()
+  const { project, activeEpisodeId, updatePanel, updateThread } = useProject()
+  const { user, profile } = useAuth()
   const { selectedFormat, setSelectedFormat, registerActionHandler } = useWorkspace()
+  const { showToast } = useToast()
+  const { addNotification } = useNotifications()
+  const isLetterer = profile?.role === 'letterer'
+  const isColorist = profile?.role === 'colorist'
   const [exportOpen, setExportOpen] = useState(false)
   const [changesNote, setChangesNote] = useState<Record<string, string>>({})
   const [showChangesFor, setShowChangesFor] = useState<string | null>(null)
-  const [showLettering, setShowLettering] = useState(false)
+  const [showLettering, setShowLettering] = useState(isLetterer)
   const [bubbles, setBubbles] = useState<BubbleData[]>([])
   const [bubbleFont, setBubbleFont] = useState<BubbleFont>('sans')
   const [dpi, setDpi] = useState(72)
   const [exporting, setExporting] = useState(false)
   const [previewScale, setPreviewScale] = useState(0.5)
   const previewRef = useRef<HTMLDivElement>(null)
+  const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   const episode = getEpisodeById(project, activeEpisodeId)
+
+  // Close export dropdown on outside click
+  useEffect(() => {
+    if (!exportOpen) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
+        setExportOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [exportOpen])
 
   const spec = useMemo(() => getFormatSpec(selectedFormat), [selectedFormat])
 
@@ -97,11 +116,13 @@ export default function CompileExport() {
       if (type === 'pdf') await exportPDF(previewRef.current, opts)
       else if (type === 'png') await exportSinglePNG(previewRef.current, opts)
       else if (type === 'zip') await exportZIP(previewRef.current, opts)
+      showToast('Export complete!', 'success')
     } catch (e) {
       console.error('Export failed:', e)
+      showToast('Export failed. Check console for details.', 'error')
     }
     setExporting(false)
-  }, [selectedFormat, dpi, spec, project.title, episode])
+  }, [selectedFormat, dpi, spec, project.title, episode, showToast])
 
   const initLettering = useCallback(() => {
     if (!episode) return
@@ -152,15 +173,21 @@ export default function CompileExport() {
       .every(panel => approvedPanelIds.has(panel.id) || panel.status === 'approved')
 
     if (everyPanelApproved) {
-      updateThreadStatus(epThread.id, 'approved')
+      updateThread(epThread.id, { status: 'approved' })
     }
-  }, [episode, project.threads])
+  }, [episode, project.threads, updateThread])
 
   const approve = useCallback((panelId: string, pageId: string) => {
     if (!episode) return
     updatePanel(episode.id, pageId, panelId, { status: 'approved' as PanelStatus })
     syncThreadApprovedStatus(new Set([panelId]))
-  }, [episode, syncThreadApprovedStatus, updatePanel])
+    const pan = panels.find(p => p.id === panelId)
+    addNotification({
+      type: 'approval',
+      title: 'Panel approved',
+      body: pan ? `P${pan.page}/Panel ${pan.panel} in EP${episode.number} approved.` : `Panel in EP${episode.number} approved.`,
+    })
+  }, [addNotification, episode, panels, syncThreadApprovedStatus, updatePanel])
 
   const requestChanges = useCallback(async (panelId: string, pageId: string) => {
     if (!episode) return
@@ -176,11 +203,17 @@ export default function CompileExport() {
     }
     // Thread goes back to in_progress when changes are requested
     if (epThread) {
-      updateThreadStatus(epThread.id, 'in_progress')
+      updateThread(epThread.id, { status: 'in_progress' })
     }
+    const pan = panels.find(p => p.id === panelId)
+    addNotification({
+      type: 'changes_requested',
+      title: 'Changes requested',
+      body: pan ? `P${pan.page}/Panel ${pan.panel} in EP${episode.number} needs revisions.` : `Panel in EP${episode.number} needs revisions.`,
+    })
     setChangesNote(prev => { const n = { ...prev }; delete n[panelId]; return n })
     setShowChangesFor(null)
-  }, [changesNote, episode, panels, project.threads, updatePanel, user])
+  }, [addNotification, changesNote, episode, panels, project.threads, updatePanel, updateThread, user])
 
   // Bulk approve all reviewable panels on a given page
   const bulkApprovePage = useCallback((pageId: string) => {
@@ -217,14 +250,22 @@ export default function CompileExport() {
         <div className="px-6 py-4 border-b border-ink-border bg-ink-dark/50">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="font-serif text-xl text-ink-light">Compile & Export</h2>
+              <div className="flex items-center gap-2">
+                <h2 className="font-serif text-xl text-ink-light">Compile & Export</h2>
+                {isLetterer && (
+                  <span className="rounded-md bg-purple-500/15 border border-purple-500/30 px-2 py-0.5 text-[10px] uppercase tracking-wider text-purple-400 font-sans">Letterer</span>
+                )}
+                {isColorist && (
+                  <span className="rounded-md bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-400 font-sans">Colorist</span>
+                )}
+              </div>
               <p className="text-xs text-ink-text font-sans mt-1">
                 {episode ? `EP${episode.number} — ${episode.title} · ` : ''}{totalCount} panel{totalCount !== 1 ? 's' : ''} across {episode?.pages.length ?? 0} page{episode?.pages.length !== 1 ? 's' : ''}
               </p>
             </div>
             <div className="flex items-center gap-3">
               {/* Export dropdown */}
-              <div className="relative">
+              <div className="relative" ref={exportDropdownRef}>
                 <button
                   onClick={() => setExportOpen(!exportOpen)}
                   className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors"

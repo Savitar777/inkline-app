@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { ChevronDown, ChevronRight, Plus, Trash2 } from '../icons'
 import Tag from './Tag'
 import PanelBlock from './PanelBlock'
@@ -20,7 +20,7 @@ interface Props {
   onDeleteBlock: (pageId: string, panelId: string, blockId: string) => void
 }
 
-export default function PageBlock({
+export default memo(function PageBlock({
   page, episodeId,
   onUpdatePage, onDeletePage,
   onAddPanel, onUpdatePanel, onDeletePanel,
@@ -46,7 +46,7 @@ export default function PageBlock({
   }
 
   return (
-    <div role="treeitem" aria-expanded={open} className="border-l-2 border-tag-page/20 group/page">
+    <div role="treeitem" aria-expanded={open} className="border-l-2 border-tag-page/20 group/page ink-fade-in">
       <div className="flex items-center gap-1 w-full">
         <button
           aria-label={open ? 'Collapse page' : 'Expand page'}
@@ -160,4 +160,4 @@ export default function PageBlock({
       />
     </div>
   )
-}
+})

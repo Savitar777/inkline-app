@@ -43,7 +43,7 @@ export interface Character {
 
 export interface Message {
   id: string
-  sender: 'writer' | 'artist'
+  sender: 'writer' | 'artist' | 'letterer' | 'colorist'
   name: string
   text?: string
   image?: boolean

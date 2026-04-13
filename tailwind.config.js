@@ -8,13 +8,13 @@ export default {
     extend: {
       colors: {
         ink: {
-          black: '#0D0D0D',
-          dark: '#141414',
-          panel: '#1A1A1A',
-          border: '#2A2A2A',
-          muted: '#555555',
-          text: '#8A8A8A',
-          light: '#F5F0E8',
+          black: 'var(--ink-black)',
+          dark: 'var(--ink-dark)',
+          panel: 'var(--ink-panel)',
+          border: 'var(--ink-border)',
+          muted: 'var(--ink-muted)',
+          text: 'var(--ink-text)',
+          light: 'var(--ink-light)',
           gold: '#D4A843',
           'gold-dim': '#B8922E',
         },

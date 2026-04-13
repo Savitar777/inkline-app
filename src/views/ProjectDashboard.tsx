@@ -7,6 +7,7 @@ import { formatShortDate } from '../domain/time'
 import type { ProjectFormat } from '../lib/database.types'
 import SettingsPanel from '../components/SettingsPanel'
 import ProfileAvatar from '../components/ProfileAvatar'
+import OnboardingFlow, { hasCompletedOnboarding } from '../components/OnboardingFlow'
 
 const FORMAT_LABELS: Record<ProjectFormat, string> = {
   webtoon: 'Webtoon',
@@ -38,6 +39,7 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
   const [newFormat, setNewFormat] = useState<ProjectFormat>('webtoon')
   const [creating, setCreating] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   useEffect(() => {
     if (!profile) return
@@ -46,6 +48,9 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
       if (cancelled) return
       setProjects(data as ProjectRow[])
       setLoading(false)
+      if ((data as ProjectRow[]).length === 0 && !hasCompletedOnboarding()) {
+        setShowOnboarding(true)
+      }
     })
     return () => { cancelled = true }
   }, [profile])
@@ -178,7 +183,13 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
               <BookOpen size={22} className="text-ink-muted" />
             </div>
             <p className="text-sm text-ink-text font-sans mb-1">No projects yet.</p>
-            <p className="text-xs text-ink-muted font-sans">Create one to get started.</p>
+            <p className="text-xs text-ink-muted font-sans mb-4">Create your first project to start writing, collaborating, and exporting.</p>
+            <button
+              onClick={() => setShowNew(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-ink-gold text-ink-black text-sm font-sans font-semibold hover:bg-ink-gold-dim transition-colors ink-pop-in"
+            >
+              <Plus size={14} /> New Project
+            </button>
           </div>
         ) : (
           <div className={`grid ${preferences.compactDashboard ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'}`}>
@@ -211,6 +222,7 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
       </main>
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
+      {showOnboarding && <OnboardingFlow onComplete={() => setShowOnboarding(false)} />}
     </div>
   )
 }

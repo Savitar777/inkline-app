@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+import { memo, useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Grip, Plus, Trash2, MessageCircle, Quote, Volume2 } from '../icons'
 import Tag from './Tag'
 import ContentBlockView from './ContentBlockView'
@@ -27,17 +27,30 @@ interface Props {
   onDeleteBlock: (panelId: string, blockId: string) => void
 }
 
-export default function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelete, onAddBlock, onUpdateBlock, onDeleteBlock }: Props) {
+export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelete, onAddBlock, onUpdateBlock, onDeleteBlock }: Props) {
   const [open, setOpen] = useState(true)
   const [editingDesc, setEditingDesc] = useState(false)
   const [descDraft, setDescDraft] = useState(panel.description)
   const [showShotPicker, setShowShotPicker] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const descRef = useRef<HTMLTextAreaElement>(null)
+  const shotPickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (editingDesc && descRef.current) descRef.current.focus()
   }, [editingDesc])
+
+  // Close shot type picker on outside click
+  useEffect(() => {
+    if (!showShotPicker) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (shotPickerRef.current && !shotPickerRef.current.contains(e.target as Node)) {
+        setShowShotPicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showShotPicker])
 
   const saveDesc = () => {
     onUpdate(panel.id, { description: descDraft })
@@ -45,7 +58,7 @@ export default function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelet
   }
 
   return (
-    <div role="treeitem" aria-expanded={open} className="ml-4 border-l-2 border-tag-panel/20 group/panel">
+    <div role="treeitem" aria-expanded={open} className="ml-4 border-l-2 border-tag-panel/20 group/panel ink-fade-in">
       <div className="flex items-center gap-1 w-full">
         <button
           aria-label={open ? 'Collapse panel' : 'Expand panel'}
@@ -67,7 +80,7 @@ export default function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelet
           })()}
 
           {/* Shot type picker */}
-          <div className="relative" onClick={e => e.stopPropagation()}>
+          <div className="relative" ref={shotPickerRef} onClick={e => e.stopPropagation()}>
             <button
               aria-label="Change shot type"
               onClick={() => setShowShotPicker(v => !v)}
@@ -188,4 +201,4 @@ export default function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelet
       />
     </div>
   )
-}
+})

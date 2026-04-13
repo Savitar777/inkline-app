@@ -5,7 +5,7 @@ import { usePreferences, useResolvedPlatformMode } from '../context/PreferencesC
 import { formatShortcut, getPlatformModeLabel } from '../domain/platform'
 import { isSupabaseConfigured } from '../lib/supabase'
 import ProfileAvatar from './ProfileAvatar'
-import type { PlatformMode, WorkspaceView } from '../types/preferences'
+import type { PlatformMode, ThemeMode, WorkspaceView } from '../types/preferences'
 
 type PanelTab = 'profile' | 'workspace' | 'data'
 
@@ -399,6 +399,40 @@ export default function SettingsPanel({ onClose, projectActions }: SettingsPanel
                 </div>
 
                 <div>
+                  <p className="text-[11px] uppercase tracking-wider text-ink-muted font-sans">Theme</p>
+                  <p className="mt-2 text-sm text-ink-text font-sans leading-relaxed max-w-2xl">
+                    Choose between dark and light modes, or follow your system setting.
+                  </p>
+                  <div className="mt-3 grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(140px,1fr))]">
+                    {([
+                      { id: 'dark' as ThemeMode, label: 'Dark' },
+                      { id: 'light' as ThemeMode, label: 'Light' },
+                      { id: 'system' as ThemeMode, label: 'System' },
+                    ]).map(option => (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => updatePreferences({ theme: option.id })}
+                        className={`rounded-2xl border p-4 text-left transition-colors ${
+                          preferences.theme === option.id
+                            ? 'border-ink-gold/40 bg-ink-gold/10'
+                            : 'border-ink-border bg-ink-panel hover:border-ink-gold/20'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-sm text-ink-light font-sans">{option.label}</span>
+                          {preferences.theme === option.id && (
+                            <span className="rounded-full bg-ink-gold/15 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-ink-gold">
+                              Active
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="text-[11px] uppercase tracking-wider text-ink-muted font-sans">Keyboard mode</p>
                     <span className="rounded-full border border-ink-border px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-ink-muted">
@@ -456,6 +490,33 @@ export default function SettingsPanel({ onClose, projectActions }: SettingsPanel
                   checked={preferences.compactDashboard}
                   onToggle={() => updatePreferences({ compactDashboard: !preferences.compactDashboard })}
                 />
+
+                <div>
+                  <p className="text-[11px] uppercase tracking-wider text-ink-muted font-sans mb-2">Keyboard shortcuts</p>
+                  <p className="text-sm text-ink-text font-sans leading-relaxed max-w-2xl mb-3">
+                    Global shortcuts available throughout the workspace.
+                  </p>
+                  <div className="grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(260px,1fr))]">
+                    {([
+                      { keys: ['primary', 'k'], label: 'Search / Command Palette' },
+                      { keys: ['primary', 'z'], label: 'Undo' },
+                      { keys: ['primary', 'shift', 'z'], label: 'Redo' },
+                      { keys: ['primary', 'e'], label: 'New Episode' },
+                      { keys: ['primary', 'shift', 'p'], label: 'New Page' },
+                      { keys: ['primary', 'shift', 'n'], label: 'New Panel' },
+                      { keys: ['primary', 'enter'], label: 'Submit to Artist' },
+                      { keys: ['primary', 'shift', 'a'], label: 'Approve Next Reviewable' },
+                      { keys: ['primary', 'shift', 'r'], label: 'Request Changes (Next)' },
+                    ] as { keys: string[]; label: string }[]).map(shortcut => (
+                      <div key={shortcut.label} className="flex items-center justify-between rounded-xl border border-ink-border bg-ink-panel px-3.5 py-2.5">
+                        <span className="text-xs text-ink-text font-sans">{shortcut.label}</span>
+                        <kbd className="rounded border border-ink-border bg-ink-black/40 px-2 py-0.5 text-[10px] uppercase tracking-[0.18em] text-ink-muted font-mono">
+                          {formatShortcut(resolvedPlatformMode, shortcut.keys)}
+                        </kbd>
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </section>
             )}
 

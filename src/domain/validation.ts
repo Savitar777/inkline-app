@@ -18,10 +18,13 @@ function asRecord(value: unknown, path: string): Record<string, unknown> {
   return value as Record<string, unknown>
 }
 
-function asString(value: unknown, path: string, fallback = ''): string {
+function asString(value: unknown, path: string, fallback = '', maxLength = 0): string {
   if (value == null) return fallback
   if (typeof value !== 'string') {
     throw new ProjectImportError('invalid_shape', `${path} must be a string.`)
+  }
+  if (maxLength > 0 && value.length > maxLength) {
+    throw new ProjectImportError('invalid_shape', `${path} exceeds max length of ${maxLength}.`)
   }
   return value
 }
@@ -34,9 +37,12 @@ function asNumber(value: unknown, path: string, fallback = 0): number {
   return value
 }
 
-function asArray(value: unknown, path: string): unknown[] {
+function asArray(value: unknown, path: string, maxItems = 0): unknown[] {
   if (!Array.isArray(value)) {
     throw new ProjectImportError('invalid_shape', `${path} must be an array.`)
+  }
+  if (maxItems > 0 && value.length > maxItems) {
+    throw new ProjectImportError('invalid_shape', `${path} exceeds max items of ${maxItems}.`)
   }
   return value
 }
@@ -57,7 +63,7 @@ function parseContentBlock(value: unknown, index: number): ContentBlock {
     type: type as ContentBlock['type'],
     character: asString(block.character, `content[${index}].character`, '') || undefined,
     parenthetical: asString(block.parenthetical, `content[${index}].parenthetical`, '') || undefined,
-    text: asString(block.text, `content[${index}].text`),
+    text: asString(block.text, `content[${index}].text`, '', 10000),
   }
 }
 
@@ -72,10 +78,10 @@ function parsePanel(value: unknown, index: number): Panel {
     id: asString(panel.id, `panels[${index}].id`),
     number: asNumber(panel.number, `panels[${index}].number`),
     shot: asString(panel.shot, `panels[${index}].shot`),
-    description: asString(panel.description, `panels[${index}].description`),
+    description: asString(panel.description, `panels[${index}].description`, '', 5000),
     status: isPanelStatus(status) ? status : undefined,
     assetUrl: asString(panel.assetUrl, `panels[${index}].assetUrl`, '') || undefined,
-    content: asArray(panel.content, `panels[${index}].content`).map(parseContentBlock),
+    content: asArray(panel.content, `panels[${index}].content`, 50).map(parseContentBlock),
   }
 }
 
@@ -85,7 +91,7 @@ function parsePage(value: unknown, index: number): Page {
     id: asString(page.id, `pages[${index}].id`),
     number: asNumber(page.number, `pages[${index}].number`),
     layoutNote: asString(page.layoutNote, `pages[${index}].layoutNote`),
-    panels: asArray(page.panels, `pages[${index}].panels`).map(parsePanel),
+    panels: asArray(page.panels, `pages[${index}].panels`, 20).map(parsePanel),
   }
 }
 
@@ -95,8 +101,8 @@ function parseEpisode(value: unknown, index: number): Episode {
     id: asString(episode.id, `episodes[${index}].id`),
     number: asNumber(episode.number, `episodes[${index}].number`),
     title: asString(episode.title, `episodes[${index}].title`),
-    brief: asString(episode.brief, `episodes[${index}].brief`),
-    pages: asArray(episode.pages, `episodes[${index}].pages`).map(parsePage),
+    brief: asString(episode.brief, `episodes[${index}].brief`, '', 5000),
+    pages: asArray(episode.pages, `episodes[${index}].pages`, 100).map(parsePage),
   }
 }
 
@@ -143,7 +149,7 @@ function parseThread(value: unknown, index: number): Thread {
     pageRange: asString(thread.pageRange, `threads[${index}].pageRange`),
     status: status as Thread['status'],
     unread: asNumber(thread.unread, `threads[${index}].unread`, 0),
-    messages: asArray(thread.messages, `threads[${index}].messages`).map(parseMessage),
+    messages: asArray(thread.messages, `threads[${index}].messages`, 1000).map(parseMessage),
   }
 }
 
@@ -156,11 +162,11 @@ export function validateProjectDocument(value: unknown): Project {
 
   return {
     id: asString(project.id, 'project.id'),
-    title: asString(project.title, 'project.title'),
+    title: asString(project.title, 'project.title', '', 200),
     format: format as Project['format'],
-    episodes: asArray(project.episodes, 'project.episodes').map(parseEpisode),
-    characters: asArray(project.characters, 'project.characters').map(parseCharacter),
-    threads: asArray(project.threads, 'project.threads').map(parseThread),
+    episodes: asArray(project.episodes, 'project.episodes', 50).map(parseEpisode),
+    characters: asArray(project.characters, 'project.characters', 100).map(parseCharacter),
+    threads: asArray(project.threads, 'project.threads', 50).map(parseThread),
   }
 }
 

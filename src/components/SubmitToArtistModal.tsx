@@ -5,6 +5,8 @@ import { useProject } from '../context/ProjectContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { createThread } from '../services/projectService'
 import { useAuth } from '../context/AuthContext'
+import { useNotifications } from '../context/NotificationContext'
+import { formatShortTime } from '../domain/time'
 
 interface Props {
   episode: Episode
@@ -13,9 +15,10 @@ interface Props {
 }
 
 export default function SubmitToArtistModal({ episode, onClose, onSubmitted }: Props) {
-  const { project, updatePanel } = useProject()
+  const { project, updatePanel, addThread, addMessage } = useProject()
   const { user } = useAuth()
   const { setActiveThreadId } = useWorkspace()
+  const { addNotification } = useNotifications()
 
   const [selectedPageIds, setSelectedPageIds] = useState<Set<string>>(
     new Set(episode.pages.map(p => p.id))
@@ -49,7 +52,7 @@ export default function SubmitToArtistModal({ episode, onClose, onSubmitted }: P
       }
     }
 
-    // Create a collaboration thread (online mode only)
+    // Create a collaboration thread
     if (user && project.id) {
       const threadId = await createThread(
         project.id,
@@ -58,7 +61,34 @@ export default function SubmitToArtistModal({ episode, onClose, onSubmitted }: P
         pageRange,
       )
       if (threadId) setActiveThreadId(threadId)
+    } else {
+      // Offline mode — create thread locally
+      const threadId = crypto.randomUUID()
+      const now = formatShortTime(new Date())
+      addThread({
+        id: threadId,
+        episodeId: episode.id,
+        label: `EP${episode.number} — ${episode.title}`,
+        pageRange,
+        status: 'submitted',
+        unread: 0,
+        messages: [],
+      })
+      addMessage(threadId, {
+        id: crypto.randomUUID(),
+        sender: 'writer',
+        name: 'Writer',
+        text: `Submitted ${pageRange} for review.`,
+        timestamp: now,
+      })
+      setActiveThreadId(threadId)
     }
+
+    addNotification({
+      type: 'submission',
+      title: `${pageRange} submitted`,
+      body: `EP${episode.number} — ${episode.title}: ${panelCount} panel${panelCount !== 1 ? 's' : ''} sent for artist review.`,
+    })
 
     setSubmitting(false)
     onSubmitted()

@@ -9,13 +9,17 @@ import {
   Trash2,
   Check,
   X,
+  User,
 } from '../icons'
 import Tag from '../components/Tag'
 import PageBlock from '../components/PageBlock'
 import SubmitToArtistModal from '../components/SubmitToArtistModal'
+import ScriptPreviewModal from '../components/ScriptPreviewModal'
+import MobileDrawer from '../components/MobileDrawer'
 import ConfirmDialog from '../components/workspace/ConfirmDialog'
 import { useProject } from '../context/ProjectContext'
 import { useWorkspace } from '../context/WorkspaceContext'
+import { useBreakpoint } from '../hooks/useBreakpoint'
 import { getEpisodeStats } from '../domain/selectors'
 import type { Character } from '../types'
 
@@ -184,7 +188,9 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
     addContentBlock, updateContentBlock, deleteContentBlock,
     addCharacter,
   } = useProject()
-  const { registerActionHandler } = useWorkspace()
+  const { registerActionHandler, selectedFormat } = useWorkspace()
+  const breakpoint = useBreakpoint()
+  const isMobile = breakpoint === 'mobile'
 
   const episode = project.episodes.find(e => e.id === activeEpisodeId)
 
@@ -195,6 +201,9 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
   const [showAddChar, setShowAddChar] = useState(false)
   const [confirmDelEp, setConfirmDelEp] = useState<string | null>(null)
   const [showSubmit, setShowSubmit] = useState(false)
+  const [showPreview, setShowPreview] = useState(false)
+  const [showEpisodeDrawer, setShowEpisodeDrawer] = useState(false)
+  const [showCharDrawer, setShowCharDrawer] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
   const briefRef = useRef<HTMLTextAreaElement>(null)
 
@@ -230,57 +239,131 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
     registerActionHandler,
   ])
 
-  return (
-    <div className="flex h-full">
-      {/* Left Sidebar — Episode List */}
-      <aside className="w-56 border-r border-ink-border bg-ink-dark shrink-0 flex flex-col">
-        <div className="px-4 py-3 border-b border-ink-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Episodes</span>
+  const episodeListContent = (
+    <>
+      <div className="px-4 py-3 border-b border-ink-border">
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Episodes</span>
+          <button
+            aria-label="Add episode"
+            onClick={addEpisode}
+            className="w-5 h-5 rounded flex items-center justify-center hover:bg-ink-panel text-ink-text hover:text-ink-gold transition-colors"
+          >
+            <Plus size={12} />
+          </button>
+        </div>
+      </div>
+      <div role="tree" aria-label="Episode list" className="flex-1 overflow-y-auto py-1">
+        {project.episodes.length === 0 && (
+          <div className="px-4 py-6 text-center">
+            <p className="text-xs text-ink-muted font-sans">No episodes yet.</p>
+            <p className="text-[11px] text-ink-muted/60 font-sans mt-1">Click "+" above to create your first episode.</p>
+          </div>
+        )}
+        {project.episodes.map((ep) => (
+          <div key={ep.id} role="treeitem" aria-selected={activeEpisodeId === ep.id} className="group/ep relative">
             <button
-              aria-label="Add episode"
-              onClick={addEpisode}
-              className="w-5 h-5 rounded flex items-center justify-center hover:bg-ink-panel text-ink-text hover:text-ink-gold transition-colors"
+              onClick={() => { setActiveEpisodeId(ep.id); if (isMobile) setShowEpisodeDrawer(false) }}
+              className={`w-full text-left px-4 py-2.5 flex items-start gap-2 transition-colors ${
+                activeEpisodeId === ep.id
+                  ? 'bg-ink-panel border-l-2 border-ink-gold'
+                  : 'hover:bg-ink-panel/50 border-l-2 border-transparent'
+              }`}
             >
-              <Plus size={12} />
+              <BookOpen size={13} className={`mt-0.5 shrink-0 ${activeEpisodeId === ep.id ? 'text-ink-gold' : 'text-ink-muted'}`} />
+              <div className="flex-1 min-w-0">
+                <div className={`text-xs font-mono ${activeEpisodeId === ep.id ? 'text-ink-gold' : 'text-ink-text'}`}>
+                  EP {ep.number}
+                </div>
+                <div className={`text-sm font-sans leading-tight truncate ${activeEpisodeId === ep.id ? 'text-ink-light' : 'text-ink-text'}`}>
+                  {ep.title}
+                </div>
+              </div>
+            </button>
+            <button
+              aria-label="Delete episode"
+              onClick={e => { e.stopPropagation(); setConfirmDelEp(ep.id) }}
+              className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/ep:opacity-100 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all"
+            >
+              <Trash2 size={11} />
             </button>
           </div>
+        ))}
+      </div>
+    </>
+  )
+
+  const characterContent = (
+    <>
+      <div className="px-4 py-3 border-b border-ink-border">
+        <div className="flex items-center justify-between">
+          <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Characters</span>
+          <button
+            aria-label="Add character"
+            onClick={() => setShowAddChar(v => !v)}
+            className="w-5 h-5 rounded flex items-center justify-center hover:bg-ink-panel text-ink-text hover:text-ink-gold transition-colors"
+          >
+            <Plus size={12} />
+          </button>
         </div>
-        <div role="tree" aria-label="Episode list" className="flex-1 overflow-y-auto py-1">
-          {project.episodes.length === 0 && (
-            <p className="px-4 py-3 text-xs text-ink-muted font-sans italic">No episodes yet.</p>
-          )}
-          {project.episodes.map((ep) => (
-            <div key={ep.id} role="treeitem" aria-selected={activeEpisodeId === ep.id} className="group/ep relative">
-              <button
-                onClick={() => setActiveEpisodeId(ep.id)}
-                className={`w-full text-left px-4 py-2.5 flex items-start gap-2 transition-colors ${
-                  activeEpisodeId === ep.id
-                    ? 'bg-ink-panel border-l-2 border-ink-gold'
-                    : 'hover:bg-ink-panel/50 border-l-2 border-transparent'
-                }`}
-              >
-                <BookOpen size={13} className={`mt-0.5 shrink-0 ${activeEpisodeId === ep.id ? 'text-ink-gold' : 'text-ink-muted'}`} />
-                <div className="flex-1 min-w-0">
-                  <div className={`text-xs font-mono ${activeEpisodeId === ep.id ? 'text-ink-gold' : 'text-ink-text'}`}>
-                    EP {ep.number}
-                  </div>
-                  <div className={`text-sm font-sans leading-tight truncate ${activeEpisodeId === ep.id ? 'text-ink-light' : 'text-ink-text'}`}>
-                    {ep.title}
-                  </div>
-                </div>
-              </button>
-              <button
-                aria-label="Delete episode"
-                onClick={e => { e.stopPropagation(); setConfirmDelEp(ep.id) }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/ep:opacity-100 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all"
-              >
-                <Trash2 size={11} />
-              </button>
+      </div>
+
+      {showAddChar && (
+        <AddCharacterForm
+          onSave={char => { addCharacter(char); setShowAddChar(false) }}
+          onCancel={() => setShowAddChar(false)}
+        />
+      )}
+
+      <div className="flex-1 overflow-y-auto py-2">
+        {project.characters.length === 0 && !showAddChar && (
+          <p className="px-4 py-3 text-xs text-ink-muted font-sans italic">No characters yet.</p>
+        )}
+        {project.characters.map(char => (
+          <CharacterCard key={char.id} char={char} />
+        ))}
+      </div>
+
+      {/* Script Stats */}
+      <div className="px-4 py-3 border-t border-ink-border">
+        <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">Script Stats</span>
+        <div className="grid grid-cols-2 gap-2">
+          {[
+            { label: 'Pages', value: stats.pages },
+            { label: 'Panels', value: stats.panels },
+            { label: 'Dialogue', value: stats.dialogue },
+            { label: 'SFX', value: stats.sfx },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-ink-panel rounded px-2 py-1.5">
+              <div className="text-xs font-mono text-ink-light">{value}</div>
+              <div className="text-[10px] text-ink-muted font-sans">{label}</div>
             </div>
           ))}
         </div>
-      </aside>
+      </div>
+    </>
+  )
+
+  return (
+    <div className="flex h-full">
+      {/* Left Sidebar — Episode List (desktop/tablet only) */}
+      {!isMobile && (
+        <aside className="w-56 border-r border-ink-border bg-ink-dark shrink-0 flex flex-col">
+          {episodeListContent}
+        </aside>
+      )}
+
+      {/* Mobile drawers */}
+      {isMobile && (
+        <>
+          <MobileDrawer open={showEpisodeDrawer} onClose={() => setShowEpisodeDrawer(false)} title="Episodes" side="left">
+            {episodeListContent}
+          </MobileDrawer>
+          <MobileDrawer open={showCharDrawer} onClose={() => setShowCharDrawer(false)} title="Characters" side="right">
+            {characterContent}
+          </MobileDrawer>
+        </>
+      )}
 
       {/* Main Script Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
@@ -288,21 +371,30 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
           <div className="flex flex-col items-center justify-center h-full text-center">
             <FileText size={32} className="text-ink-muted mb-3" />
             <p className="text-sm text-ink-text font-sans">No episode selected.</p>
-            <button onClick={addEpisode} className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-sans text-ink-gold border border-ink-gold/30 hover:bg-ink-gold/10 transition-colors">
-              <Plus size={12} /> New Episode
+            <button onClick={() => isMobile ? setShowEpisodeDrawer(true) : addEpisode()} className="mt-3 flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-sans text-ink-gold border border-ink-gold/30 hover:bg-ink-gold/10 transition-colors">
+              <Plus size={12} /> {isMobile ? 'Select Episode' : 'New Episode'}
             </button>
           </div>
         ) : (
           <>
             {/* Episode Header */}
-            <div className="px-6 py-4 border-b border-ink-border bg-ink-dark/50">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Tag type="episode">Episode {episode.number}</Tag>
+            <div className={`${isMobile ? 'px-3 py-3' : 'px-6 py-4'} border-b border-ink-border bg-ink-dark/50`}>
+              <div className={`flex items-center ${isMobile ? 'gap-2' : 'justify-between'}`}>
+                <div className="flex items-center gap-2 min-w-0 flex-1">
+                  {isMobile && (
+                    <button
+                      aria-label="Open episodes"
+                      onClick={() => setShowEpisodeDrawer(true)}
+                      className="shrink-0 p-1.5 rounded text-ink-muted hover:text-ink-gold transition-colors"
+                    >
+                      <BookOpen size={16} />
+                    </button>
+                  )}
+                  <Tag type="episode">EP {episode.number}</Tag>
                   {editingTitle ? (
                     <input
                       ref={titleRef}
-                      className="font-serif text-xl text-ink-light bg-transparent border-b border-ink-gold/60 outline-none"
+                      className={`font-serif ${isMobile ? 'text-base' : 'text-xl'} text-ink-light bg-transparent border-b border-ink-gold/60 outline-none min-w-0`}
                       value={titleDraft}
                       onChange={e => setTitleDraft(e.target.value)}
                       onBlur={saveTitle}
@@ -315,52 +407,68 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
                       aria-label="Edit episode title"
                       onClick={startEditTitle}
                       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') startEditTitle() }}
-                      className="font-serif text-xl text-ink-light cursor-pointer hover:text-ink-gold transition-colors"
+                      className={`font-serif ${isMobile ? 'text-base truncate' : 'text-xl'} text-ink-light cursor-pointer hover:text-ink-gold transition-colors`}
                     >
                       {episode.title}
                     </h2>
                   )}
                 </div>
-                <div className="flex items-center gap-2">
-                  <button className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-sans text-ink-text hover:text-ink-light hover:bg-ink-panel transition-colors">
-                    <Eye size={13} />
-                    Preview
-                  </button>
+                <div className="flex items-center gap-2 shrink-0">
+                  {isMobile && (
+                    <button
+                      aria-label="Open characters"
+                      onClick={() => setShowCharDrawer(true)}
+                      className="p-1.5 rounded text-ink-muted hover:text-ink-gold transition-colors"
+                    >
+                      <User size={16} />
+                    </button>
+                  )}
+                  {!isMobile && (
+                    <button
+                      onClick={() => setShowPreview(true)}
+                      className="flex items-center gap-2 px-3 py-1.5 rounded-md text-xs font-sans text-ink-text hover:text-ink-light hover:bg-ink-panel transition-colors"
+                    >
+                      <Eye size={13} />
+                      Preview
+                    </button>
+                  )}
                   <button
                     onClick={() => setShowSubmit(true)}
-                    className="flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors"
+                    className={`flex items-center gap-2 rounded-md text-xs font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors ${isMobile ? 'p-2' : 'px-4 py-1.5'}`}
                   >
                     <Send size={13} />
-                    Submit to Artist
+                    {!isMobile && 'Submit to Artist'}
                   </button>
                 </div>
               </div>
-              {editingBrief ? (
-                <textarea
-                  ref={briefRef}
-                  className="mt-2 text-sm text-ink-text font-sans leading-relaxed max-w-2xl w-full bg-transparent border border-ink-gold/40 rounded px-2 py-1 outline-none resize-none"
-                  rows={3}
-                  value={briefDraft}
-                  onChange={e => setBriefDraft(e.target.value)}
-                  onBlur={saveBrief}
-                  onKeyDown={e => { if (e.key === 'Escape') setEditingBrief(false) }}
-                />
-              ) : (
-                <p
-                  role="button"
-                  tabIndex={0}
-                  aria-label="Edit episode brief"
-                  onClick={startEditBrief}
-                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') startEditBrief() }}
-                  className="text-sm text-ink-text font-sans mt-2 leading-relaxed max-w-2xl cursor-pointer hover:text-ink-light transition-colors"
-                >
-                  {episode.brief || <span className="text-ink-muted italic">Click to add episode brief…</span>}
-                </p>
+              {!isMobile && (
+                editingBrief ? (
+                  <textarea
+                    ref={briefRef}
+                    className="mt-2 text-sm text-ink-text font-sans leading-relaxed max-w-2xl w-full bg-transparent border border-ink-gold/40 rounded px-2 py-1 outline-none resize-none"
+                    rows={3}
+                    value={briefDraft}
+                    onChange={e => setBriefDraft(e.target.value)}
+                    onBlur={saveBrief}
+                    onKeyDown={e => { if (e.key === 'Escape') setEditingBrief(false) }}
+                  />
+                ) : (
+                  <p
+                    role="button"
+                    tabIndex={0}
+                    aria-label="Edit episode brief"
+                    onClick={startEditBrief}
+                    onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') startEditBrief() }}
+                    className="text-sm text-ink-text font-sans mt-2 leading-relaxed max-w-2xl cursor-pointer hover:text-ink-light transition-colors"
+                  >
+                    {episode.brief || <span className="text-ink-muted italic">Click to add episode brief…</span>}
+                  </p>
+                )
               )}
             </div>
 
             {/* Script Content */}
-            <div className="flex-1 overflow-y-auto px-6 py-4">
+            <div className={`flex-1 overflow-y-auto ${isMobile ? 'px-3 py-3' : 'px-6 py-4'}`}>
               {episode.pages.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <FileText size={32} className="text-ink-muted mb-3" />
@@ -404,61 +512,26 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
         )}
       </div>
 
-      {/* Right Sidebar — Characters */}
-      <aside className="w-64 border-l border-ink-border bg-ink-dark shrink-0 flex flex-col">
-        <div className="px-4 py-3 border-b border-ink-border">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Characters</span>
-            <button
-              aria-label="Add character"
-              onClick={() => setShowAddChar(v => !v)}
-              className="w-5 h-5 rounded flex items-center justify-center hover:bg-ink-panel text-ink-text hover:text-ink-gold transition-colors"
-            >
-              <Plus size={12} />
-            </button>
-          </div>
-        </div>
-
-        {showAddChar && (
-          <AddCharacterForm
-            onSave={char => { addCharacter(char); setShowAddChar(false) }}
-            onCancel={() => setShowAddChar(false)}
-          />
-        )}
-
-        <div className="flex-1 overflow-y-auto py-2">
-          {project.characters.length === 0 && !showAddChar && (
-            <p className="px-4 py-3 text-xs text-ink-muted font-sans italic">No characters yet.</p>
-          )}
-          {project.characters.map(char => (
-            <CharacterCard key={char.id} char={char} />
-          ))}
-        </div>
-
-        {/* Script Stats */}
-        <div className="px-4 py-3 border-t border-ink-border">
-          <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">Script Stats</span>
-          <div className="grid grid-cols-2 gap-2">
-            {[
-              { label: 'Pages', value: stats.pages },
-              { label: 'Panels', value: stats.panels },
-              { label: 'Dialogue', value: stats.dialogue },
-              { label: 'SFX', value: stats.sfx },
-            ].map(({ label, value }) => (
-              <div key={label} className="bg-ink-panel rounded px-2 py-1.5">
-                <div className="text-xs font-mono text-ink-light">{value}</div>
-                <div className="text-[10px] text-ink-muted font-sans">{label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </aside>
+      {/* Right Sidebar — Characters (desktop/tablet only) */}
+      {!isMobile && (
+        <aside className="w-64 border-l border-ink-border bg-ink-dark shrink-0 flex flex-col">
+          {characterContent}
+        </aside>
+      )}
 
       {showSubmit && episode && (
         <SubmitToArtistModal
           episode={episode}
           onClose={() => setShowSubmit(false)}
           onSubmitted={() => { setShowSubmit(false); onGoToCollab?.() }}
+        />
+      )}
+
+      {showPreview && episode && (
+        <ScriptPreviewModal
+          episode={episode}
+          format={selectedFormat}
+          onClose={() => setShowPreview(false)}
         />
       )}
 

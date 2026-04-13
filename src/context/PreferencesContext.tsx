@@ -1,7 +1,7 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import { resolvePlatformMode, type ResolvedPlatformMode } from '../domain/platform'
-import type { PlatformMode, WorkspaceView } from '../types/preferences'
+import type { PlatformMode, ThemeMode, WorkspaceView } from '../types/preferences'
 
 export interface Preferences {
   defaultView: WorkspaceView
@@ -9,6 +9,7 @@ export interface Preferences {
   lastView: WorkspaceView
   compactDashboard: boolean
   platformMode: PlatformMode
+  theme: ThemeMode
 }
 
 interface PreferencesContextType {
@@ -27,12 +28,17 @@ function isPlatformMode(value: unknown): value is PlatformMode {
   return value === 'auto' || value === 'mac' || value === 'windows'
 }
 
+function isThemeMode(value: unknown): value is ThemeMode {
+  return value === 'dark' || value === 'light' || value === 'system'
+}
+
 const defaultPreferences: Preferences = {
   defaultView: 'editor',
   rememberLastView: true,
   lastView: 'editor',
   compactDashboard: false,
   platformMode: 'auto',
+  theme: 'dark',
 }
 
 const PreferencesContext = createContext<PreferencesContextType | null>(null)
@@ -53,6 +59,7 @@ function loadPreferences(): Preferences {
       defaultView: isWorkspaceView(merged.defaultView) ? merged.defaultView : defaultPreferences.defaultView,
       lastView: isWorkspaceView(merged.lastView) ? merged.lastView : defaultPreferences.lastView,
       platformMode: isPlatformMode(merged.platformMode) ? merged.platformMode : defaultPreferences.platformMode,
+      theme: isThemeMode(merged.theme) ? merged.theme : defaultPreferences.theme,
     }
   } catch {
     return defaultPreferences
@@ -65,6 +72,14 @@ export function PreferencesProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(preferences))
   }, [preferences])
+
+  // Apply theme to document
+  useEffect(() => {
+    const resolved = preferences.theme === 'system'
+      ? (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark')
+      : preferences.theme
+    document.documentElement.setAttribute('data-theme', resolved)
+  }, [preferences.theme])
 
   const updatePreferences = (updates: Partial<Preferences>) => {
     setPreferences(prev => ({ ...prev, ...updates }))
