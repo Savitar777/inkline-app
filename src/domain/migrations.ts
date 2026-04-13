@@ -1,0 +1,28 @@
+/* ─── Schema Migration Chain ─── */
+
+export const CURRENT_SCHEMA_VERSION = 1
+
+type MigrationFn = (raw: unknown) => unknown
+
+/**
+ * Ordered migration functions: index N migrates version N → N+1.
+ * Each function receives the raw parsed JSON and returns the migrated shape.
+ */
+const MIGRATIONS: MigrationFn[] = [
+  // Migration 0 → 1: normalize pre-versioning documents (identity for now)
+  (raw) => raw,
+]
+
+/**
+ * Run the migration chain from `fromVersion` up to CURRENT_SCHEMA_VERSION.
+ * If any migration throws, the error propagates to the caller.
+ */
+export function migrateProjectDocument(raw: unknown, fromVersion: number): unknown {
+  let current = raw
+  for (let v = fromVersion; v < CURRENT_SCHEMA_VERSION; v++) {
+    if (v < MIGRATIONS.length) {
+      current = MIGRATIONS[v](current)
+    }
+  }
+  return current
+}

@@ -27,6 +27,7 @@ import MessageList from '../components/collaboration/MessageList'
 import MessageInput from '../components/collaboration/MessageInput'
 import CollaboratorSidebar from '../components/collaboration/CollaboratorSidebar'
 import UploadModal from '../components/collaboration/UploadModal'
+import ReferencePanel from '../components/collaboration/ReferencePanel'
 
 const MOCK_COLLABORATORS = [
   { name: 'Kai Nakamura', role: 'artist', status: 'online', avatar: 'K' },
@@ -391,6 +392,13 @@ export default function Collaboration() {
           </>
         )}
       </div>
+
+      {/* Right — Reference Files (desktop/tablet only) */}
+      {!isMobile && activeEpisode && (
+        <aside className="w-64 border-l border-ink-border bg-ink-dark shrink-0 flex flex-col">
+          <ReferencePanel projectId={project.id} episodeId={activeEpisode.id} />
+        </aside>
+      )}
 
       {/* Right — Collaborators (desktop/tablet only) */}
       {!isMobile && (

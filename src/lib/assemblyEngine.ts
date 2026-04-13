@@ -84,6 +84,7 @@ export interface LayoutPanel {
 export interface LayoutPage {
   pageIndex: number
   pageNumber: number
+  pageId?: string
   width: number
   height: number
   panels: LayoutPanel[]
@@ -121,6 +122,7 @@ function layoutVerticalScroll(pages: Page[], spec: FormatSpec): LayoutPage[] {
   return [{
     pageIndex: 0,
     pageNumber: 1,
+    pageId: pages[0]?.id,
     width: spec.widthPx,
     height: y > 0 ? y - spec.gutterPx : 400,
     panels,
@@ -178,6 +180,7 @@ function layoutGrid(pages: Page[], spec: FormatSpec): LayoutPage[] {
     result.push({
       pageIndex: result.length,
       pageNumber: pg.number,
+      pageId: pg.id,
       width: pageW,
       height: pageH,
       panels: layoutPanels,

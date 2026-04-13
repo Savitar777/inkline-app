@@ -1,4 +1,5 @@
 import type { Character, ContentBlock, Episode, Message, Page, Panel, PanelStatus, Project, Thread } from '../types'
+import { CURRENT_SCHEMA_VERSION, migrateProjectDocument } from './migrations'
 
 type ImportErrorCode = 'invalid_json' | 'invalid_shape'
 
@@ -173,7 +174,10 @@ export function validateProjectDocument(value: unknown): Project {
 export function parseProjectDocument(json: string): Project {
   try {
     const parsed = JSON.parse(json) as unknown
-    return validateProjectDocument(parsed)
+    const record = parsed && typeof parsed === 'object' ? parsed as Record<string, unknown> : {}
+    const fromVersion = typeof record.__schemaVersion === 'number' ? record.__schemaVersion : 0
+    const migrated = migrateProjectDocument(parsed, fromVersion)
+    return validateProjectDocument(migrated)
   } catch (error) {
     if (error instanceof ProjectImportError) throw error
     throw new ProjectImportError('invalid_json', 'The selected file is not valid JSON.')
@@ -181,5 +185,5 @@ export function parseProjectDocument(json: string): Project {
 }
 
 export function serializeProjectDocument(project: Project): string {
-  return JSON.stringify(project, null, 2)
+  return JSON.stringify({ __schemaVersion: CURRENT_SCHEMA_VERSION, ...project }, null, 2)
 }

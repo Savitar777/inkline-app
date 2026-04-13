@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { AlertCircle, Check } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import ProfileAvatar from '../ProfileAvatar'
+import FileUploadZone from '../FileUploadZone'
+import { uploadAvatar } from '../../services/avatarService'
 
 interface ProfileTabProps {
   status: { tone: 'success' | 'error'; message: string } | null
@@ -13,6 +15,7 @@ export default function ProfileTab({ status, setStatus }: ProfileTabProps) {
   const [nameDraft, setNameDraft] = useState(profile?.name ?? '')
   const [avatarDraft, setAvatarDraft] = useState(profile?.avatar_url ?? '')
   const [savingProfile, setSavingProfile] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   if (!profile) return null
 
@@ -101,21 +104,44 @@ export default function ProfileTab({ status, setStatus }: ProfileTabProps) {
         </label>
       </div>
 
-      <label className="block">
+      <div className="space-y-2">
         <span className="block text-[11px] uppercase tracking-wider text-ink-muted font-sans mb-1.5">
-          Avatar URL
+          Avatar
         </span>
+        <div className="max-w-xs">
+          <FileUploadZone
+            accept="avatars"
+            uploading={uploadingAvatar}
+            previewUrl={avatarDraft || null}
+            compact
+            label="Drop avatar image or click to upload"
+            onFiles={async (files) => {
+              const file = files[0]
+              if (!file || !profile) return
+              setUploadingAvatar(true)
+              setStatus(null)
+              const url = await uploadAvatar(file, profile.id, profile.role)
+              setUploadingAvatar(false)
+              if (url) {
+                setAvatarDraft(url)
+                setStatus({ tone: 'success', message: 'Avatar uploaded.' })
+              } else {
+                setStatus({ tone: 'error', message: 'Avatar upload failed. Check file type and size.' })
+              }
+            }}
+          />
+        </div>
         <input
           type="url"
           value={avatarDraft}
           onChange={event => setAvatarDraft(event.target.value)}
           className="w-full rounded-xl border border-ink-border bg-ink-panel px-3 py-2.5 text-sm text-ink-light font-sans outline-none transition-colors focus:border-ink-gold/60"
-          placeholder="https://example.com/avatar.jpg"
+          placeholder="Or paste a URL..."
         />
-        <p className="text-xs text-ink-text font-sans mt-2">
-          Leave this blank to fall back to your initials.
+        <p className="text-xs text-ink-text font-sans">
+          Leave blank to fall back to your initials.
         </p>
-      </label>
+      </div>
 
       <div className="rounded-xl border border-ink-border bg-ink-black/30 px-4 py-3">
         <p className="text-sm text-ink-light font-sans">Role</p>

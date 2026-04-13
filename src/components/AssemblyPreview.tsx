@@ -19,6 +19,7 @@ function PanelSlot({ panel, scale }: { panel: LayoutPanel; scale: number }) {
 
   return (
     <div
+      data-panel={panel.panelId}
       className="absolute overflow-hidden"
       style={{
         left: panel.x * scale,
@@ -116,6 +117,7 @@ const AssemblyPreview = forwardRef<HTMLDivElement, Props>(
             )}
             {/* Page canvas */}
             <div
+              data-page={lp.pageId ?? lp.pageIndex}
               className="relative bg-white shadow-lg"
               style={{
                 width: lp.width * scale,

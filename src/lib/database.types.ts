@@ -6,6 +6,7 @@ export type ContentBlockType = 'dialogue' | 'caption' | 'sfx'
 export type ThreadStatus = 'submitted' | 'in_progress' | 'draft_received' | 'approved'
 export type AssetStatus = 'draft' | 'approved' | 'rejected'
 export type PanelStatus = 'draft' | 'submitted' | 'in_progress' | 'draft_received' | 'changes_requested' | 'approved'
+export type FileProcessingStatus = 'pending' | 'validating' | 'processing' | 'uploading' | 'complete' | 'error' | 'offline'
 
 // NOTE: This file is a hand-written placeholder.
 // Replace it with the output of `supabase gen types typescript` once connected
@@ -150,6 +151,39 @@ export interface Database {
         }
         Insert: Omit<Database['public']['Tables']['panel_assets']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['panel_assets']['Insert']>
+      }
+      uploaded_files: {
+        Row: {
+          id: string
+          project_id: string
+          category: string
+          original_name: string
+          storage_path: string
+          public_url: string | null
+          mime_type: string
+          size_bytes: number
+          uploaded_by: string
+          status: FileProcessingStatus
+          metadata: Record<string, unknown>
+          created_at: string
+        }
+        Insert: Omit<Database['public']['Tables']['uploaded_files']['Row'], 'created_at'>
+        Update: Partial<Database['public']['Tables']['uploaded_files']['Insert']>
+      }
+      script_imports: {
+        Row: {
+          id: string
+          project_id: string
+          file_id: string | null
+          format: string
+          mode: string
+          raw_text: string | null
+          mapping_result: Record<string, unknown> | null
+          imported_at: string
+          imported_by: string
+        }
+        Insert: Omit<Database['public']['Tables']['script_imports']['Row'], 'imported_at'>
+        Update: Partial<Database['public']['Tables']['script_imports']['Insert']>
       }
     }
     Views: Record<string, never>

@@ -11,6 +11,7 @@ import {
   Check,
   X,
   User,
+  FileImport,
 } from '../icons'
 import Tag from '../components/Tag'
 import PageBlock from '../components/PageBlock'
@@ -18,6 +19,7 @@ import SubmitToArtistModal from '../components/SubmitToArtistModal'
 import ScriptPreviewModal from '../components/ScriptPreviewModal'
 import MobileDrawer from '../components/MobileDrawer'
 import ConfirmDialog from '../components/workspace/ConfirmDialog'
+import ScriptImportWizard from '../components/ScriptImportWizard'
 import { useProject } from '../context/ProjectContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useBreakpoint } from '../hooks/useBreakpoint'
@@ -272,6 +274,7 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
   const [confirmDelEp, setConfirmDelEp] = useState<string | null>(null)
   const [showSubmit, setShowSubmit] = useState(false)
   const [showPreview, setShowPreview] = useState(false)
+  const [showImportWizard, setShowImportWizard] = useState(false)
   const [showEpisodeDrawer, setShowEpisodeDrawer] = useState(false)
   const [showCharDrawer, setShowCharDrawer] = useState(false)
   const titleRef = useRef<HTMLInputElement>(null)
@@ -314,13 +317,23 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
       <div className="px-4 py-3 border-b border-ink-border">
         <div className="flex items-center justify-between">
           <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Episodes</span>
-          <button
-            aria-label="Add episode"
-            onClick={addEpisode}
-            className="w-5 h-5 rounded flex items-center justify-center hover:bg-ink-panel text-ink-text hover:text-ink-gold transition-colors"
-          >
-            <Plus size={12} />
-          </button>
+          <div className="flex items-center gap-1">
+            <button
+              aria-label="Import script"
+              onClick={() => setShowImportWizard(true)}
+              title="Import script"
+              className="w-5 h-5 rounded flex items-center justify-center hover:bg-ink-panel text-ink-text hover:text-ink-gold transition-colors"
+            >
+              <FileImport size={12} />
+            </button>
+            <button
+              aria-label="Add episode"
+              onClick={addEpisode}
+              className="w-5 h-5 rounded flex items-center justify-center hover:bg-ink-panel text-ink-text hover:text-ink-gold transition-colors"
+            >
+              <Plus size={12} />
+            </button>
+          </div>
         </div>
       </div>
       <div role="tree" aria-label="Episode list" className="flex-1 overflow-y-auto py-1">
@@ -605,6 +618,13 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
         }}
         onCancel={() => setConfirmDelEp(null)}
       />
+
+      {showImportWizard && (
+        <ScriptImportWizard
+          projectId={project.id}
+          onClose={() => setShowImportWizard(false)}
+        />
+      )}
     </div>
   )
 }

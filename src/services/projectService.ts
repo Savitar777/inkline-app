@@ -2,6 +2,9 @@ import { supabase } from '../lib/supabase'
 import { formatShortTime } from '../domain/time'
 import type { Database, UserRole } from '../lib/database.types'
 import type { Project, Episode, ContentBlock, Character, Thread, Message } from '../types'
+import { validate as validateFile } from './fileValidationService'
+import { getStorageAdapter } from './fileStorageService'
+import { FileValidationError } from '../types/files'
 
 /* ─── Helpers ─── */
 
@@ -548,29 +551,28 @@ export async function fetchCollaborators(projectId: string): Promise<Collaborato
 
 /* ─── File Upload (Supabase Storage) ─── */
 
-const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10 MB
-
 export async function uploadPanelArtwork(
   projectId: string,
   panelId: string,
   file: File,
   userId: string,
+  userRole: UserRole = 'artist',
 ): Promise<{ url: string; assetId: string } | null> {
-  if (file.size > MAX_UPLOAD_SIZE) {
-    handleError('uploadPanelArtwork', new Error('File exceeds 10 MB limit.'))
+  // Validate through the file pipeline
+  const validation = await validateFile(file, 'panel-assets', userRole, projectId)
+  if (!validation.ok) {
+    handleError('uploadPanelArtwork', validation.error ?? new FileValidationError('mime_type_rejected', 'Validation failed.'))
     return null
   }
+
   const ext = file.name.split('.').pop() ?? 'png'
   const path = `${projectId}/${panelId}/${Date.now()}.${ext}`
 
-  const { error: uploadErr } = await supabase.storage
-    .from('panel-artwork')
-    .upload(path, file, { cacheControl: '3600', upsert: false })
+  const storage = getStorageAdapter()
+  const result = await storage.upload('panel-artwork', path, file)
+  if (!result) { handleError('uploadPanelArtwork', new Error('Storage upload failed.')); return null }
 
-  if (uploadErr) { handleError('uploadPanelArtwork', uploadErr); return null }
-
-  const { data: urlData } = supabase.storage.from('panel-artwork').getPublicUrl(path)
-  const url = urlData.publicUrl
+  const url = result.url
 
   // Get current max version for this panel
   const { data: existing } = await supabase

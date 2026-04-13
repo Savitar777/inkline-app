@@ -2,12 +2,14 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import {
   Check,
   FileText,
+  FolderOpen,
 } from '../icons'
 import AssemblyPreview from '../components/AssemblyPreview'
 import LetteringOverlay, { type BubbleData, type BubbleFont } from '../components/LetteringOverlay'
 import FormatPicker, { formats } from '../components/compile/FormatPicker'
 import PanelGrid, { type PanelThumb } from '../components/compile/PanelGrid'
 import ExportOptions from '../components/compile/ExportOptions'
+import AssetLibraryDrawer from '../components/compile/AssetLibraryDrawer'
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
@@ -46,6 +48,7 @@ export default function CompileExport() {
   const [dpi, setDpi] = useState(72)
   const [exporting, setExporting] = useState(false)
   const [previewScale, setPreviewScale] = useState(0.5)
+  const [showAssets, setShowAssets] = useState(false)
   const previewRef = useRef<HTMLDivElement>(null)
 
   const episode = getEpisodeById(project, activeEpisodeId)
@@ -210,6 +213,17 @@ export default function CompileExport() {
               </p>
             </div>
             <div className="flex items-center gap-3">
+              <button
+                onClick={() => setShowAssets(v => !v)}
+                className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm font-sans border transition-colors ${
+                  showAssets
+                    ? 'bg-ink-gold/10 text-ink-gold border-ink-gold/30'
+                    : 'text-ink-muted border-ink-border hover:text-ink-text'
+                }`}
+              >
+                <FolderOpen size={14} />
+                Assets
+              </button>
               <ExportOptions exporting={exporting} onExport={handleExport} />
             </div>
           </div>
@@ -400,6 +414,13 @@ export default function CompileExport() {
           </div>
         </div>
       </aside>
+
+      {/* Asset Library Drawer */}
+      <AssetLibraryDrawer
+        projectId={project.id}
+        open={showAssets}
+        onClose={() => setShowAssets(false)}
+      />
     </div>
   )
 }

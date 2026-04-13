@@ -4,6 +4,8 @@ import { defaultProject } from '../data/mockData'
 import * as svc from '../services/projectService'
 import { parseProjectDocument, serializeProjectDocument, type ProjectImportError } from '../domain/validation'
 import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, Thread } from '../types'
+import type { ScriptImportRecord } from '../types/files'
+import { applyImport as applyScriptImportToProject } from '../services/scriptImportService'
 
 const STORAGE_KEY = 'inkline-project'
 
@@ -43,6 +45,7 @@ interface ProjectDocumentContextType {
   addThread: (thread: Thread) => void
   updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
   addMessage: (threadId: string, message: Message) => void
+  applyScriptImport: (record: ScriptImportRecord, strategy: 'replace' | 'append' | 'merge') => void
 }
 
 const ProjectDocumentContext = createContext<ProjectDocumentContextType | null>(null)
@@ -536,6 +539,10 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     }))
   }, [])
 
+  const applyScriptImport = useCallback((record: ScriptImportRecord, strategy: 'replace' | 'append' | 'merge') => {
+    setProject(current => applyScriptImportToProject(record, strategy, current))
+  }, [])
+
   const value = useMemo<ProjectDocumentContextType>(() => ({
     project,
     loading,
@@ -565,11 +572,13 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     addThread,
     updateThread,
     addMessage,
+    applyScriptImport,
   }), [
     addCharacter,
     addContentBlock,
     addEpisode,
     addMessage,
+    applyScriptImport,
     addPage,
     addPanel,
     addThread,
