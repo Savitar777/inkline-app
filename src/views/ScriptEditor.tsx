@@ -1,5 +1,8 @@
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   BookOpen,
   FileText,
@@ -186,15 +189,36 @@ interface VirtualizedPageListProps {
   onAddPanel: (pageId: string, shot: string) => void
   onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
   onDeletePanel: (pageId: string, panelId: string) => void
+  onReorderPanels: (pageId: string, orderedPanelIds: string[]) => void
   onAddBlock: (pageId: string, panelId: string, type: ContentBlock['type']) => void
   onUpdateBlock: (pageId: string, panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
   onDeleteBlock: (pageId: string, panelId: string, blockId: string) => void
+  onReorderPages: (orderedPageIds: string[]) => void
   onAddPage: () => void
+}
+
+/* ─── Sortable Page Wrapper ─── */
+
+function SortablePageItem({ id, children }: { id: string; children: (listeners: ReturnType<typeof useSortable>['listeners']) => React.ReactNode }) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : undefined,
+    position: 'relative' as const,
+    zIndex: isDragging ? 10 : undefined,
+  }
+  return (
+    <div ref={setNodeRef} style={style}>
+      {children(listeners)}
+    </div>
+  )
 }
 
 function VirtualizedPageList({
   pages, episodeId, onUpdatePage, onDeletePage, onAddPanel, onUpdatePanel,
-  onDeletePanel, onAddBlock, onUpdateBlock, onDeleteBlock, onAddPage,
+  onDeletePanel, onReorderPanels, onAddBlock, onUpdateBlock, onDeleteBlock,
+  onReorderPages, onAddPage,
 }: VirtualizedPageListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
 
@@ -205,35 +229,64 @@ function VirtualizedPageList({
     overscan: 3,
   })
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const pageIds = useMemo(() => pages.map(p => p.id), [pages])
+
+  const handlePageDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = pages.findIndex(p => p.id === active.id)
+    const newIndex = pages.findIndex(p => p.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const reordered = [...pages]
+    const [moved] = reordered.splice(oldIndex, 1)
+    reordered.splice(newIndex, 0, moved)
+    onReorderPages(reordered.map(p => p.id))
+  }, [pages, onReorderPages])
+
   return (
     <div ref={parentRef} className="max-w-3xl" style={{ overflow: 'auto', maxHeight: '100%' }}>
-      <div role="tree" aria-label="Script pages" style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
-        {virtualizer.getVirtualItems().map(virtualRow => {
-          const page = pages[virtualRow.index]
-          return (
-            <div
-              key={page.id}
-              data-index={virtualRow.index}
-              ref={virtualizer.measureElement}
-              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)` }}
-              className="pb-4"
-            >
-              <PageBlock
-                page={page}
-                episodeId={episodeId}
-                onUpdatePage={onUpdatePage}
-                onDeletePage={onDeletePage}
-                onAddPanel={onAddPanel}
-                onUpdatePanel={onUpdatePanel}
-                onDeletePanel={onDeletePanel}
-                onAddBlock={onAddBlock}
-                onUpdateBlock={onUpdateBlock}
-                onDeleteBlock={onDeleteBlock}
-              />
-            </div>
-          )
-        })}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePageDragEnd}>
+        <SortableContext items={pageIds} strategy={verticalListSortingStrategy}>
+          <div role="tree" aria-label="Script pages" style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+            {virtualizer.getVirtualItems().map(virtualRow => {
+              const page = pages[virtualRow.index]
+              return (
+                <div
+                  key={page.id}
+                  data-index={virtualRow.index}
+                  ref={virtualizer.measureElement}
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)` }}
+                  className="pb-4"
+                >
+                  <SortablePageItem id={page.id}>
+                    {(dragListeners) => (
+                      <PageBlock
+                        page={page}
+                        episodeId={episodeId}
+                        onUpdatePage={onUpdatePage}
+                        onDeletePage={onDeletePage}
+                        onAddPanel={onAddPanel}
+                        onUpdatePanel={onUpdatePanel}
+                        onDeletePanel={onDeletePanel}
+                        onReorderPanels={onReorderPanels}
+                        onAddBlock={onAddBlock}
+                        onUpdateBlock={onUpdateBlock}
+                        onDeleteBlock={onDeleteBlock}
+                        dragListeners={dragListeners}
+                      />
+                    )}
+                  </SortablePageItem>
+                </div>
+              )
+            })}
+          </div>
+        </SortableContext>
+      </DndContext>
       <button
         aria-label="Add page"
         onClick={onAddPage}
@@ -258,7 +311,8 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
     addPage, updatePage, deletePage,
     addPanel, updatePanel, deletePanel,
     addContentBlock, updateContentBlock, deleteContentBlock,
-    addCharacter,
+    addCharacter, reorderPanels,
+    reorderPages,
   } = useProject()
   const { registerActionHandler, selectedFormat } = useWorkspace()
   const breakpoint = useBreakpoint()
@@ -573,9 +627,11 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
                   onAddPanel={(pageId, shot) => addPanel(episode.id, pageId, shot)}
                   onUpdatePanel={(pageId, panelId, updates) => updatePanel(episode.id, pageId, panelId, updates)}
                   onDeletePanel={(pageId, panelId) => deletePanel(episode.id, pageId, panelId)}
+                  onReorderPanels={(pageId, orderedPanelIds) => reorderPanels(episode.id, pageId, orderedPanelIds)}
                   onAddBlock={(pageId, panelId, type) => addContentBlock(episode.id, pageId, panelId, type)}
                   onUpdateBlock={(pageId, panelId, blockId, updates) => updateContentBlock(episode.id, pageId, panelId, blockId, updates)}
                   onDeleteBlock={(pageId, panelId, blockId) => deleteContentBlock(episode.id, pageId, panelId, blockId)}
+                  onReorderPages={(orderedPageIds) => reorderPages(episode.id, orderedPageIds)}
                   onAddPage={() => addPage(episode.id)}
                 />
               )}

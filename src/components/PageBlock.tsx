@@ -1,7 +1,9 @@
-import { memo, useState } from 'react'
-import { ChevronDown, ChevronRight, Plus, Trash2 } from '../icons'
+import { memo, useState, useCallback } from 'react'
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
+import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { ChevronDown, ChevronRight, Grip, Plus, Trash2 } from '../icons'
 import Tag from './Tag'
-import PanelBlock from './PanelBlock'
+import SortablePanelBlock from './SortablePanelBlock'
 import ConfirmDialog from './workspace/ConfirmDialog'
 import type { Page, Panel, ContentBlock } from '../types'
 
@@ -15,16 +17,19 @@ interface Props {
   onAddPanel: (pageId: string, shot: string) => void
   onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
   onDeletePanel: (pageId: string, panelId: string) => void
+  onReorderPanels: (pageId: string, orderedPanelIds: string[]) => void
   onAddBlock: (pageId: string, panelId: string, type: ContentBlock['type']) => void
   onUpdateBlock: (pageId: string, panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
   onDeleteBlock: (pageId: string, panelId: string, blockId: string) => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragListeners?: any
 }
 
 export default memo(function PageBlock({
   page, episodeId,
   onUpdatePage, onDeletePage,
-  onAddPanel, onUpdatePanel, onDeletePanel,
-  onAddBlock, onUpdateBlock, onDeleteBlock,
+  onAddPanel, onUpdatePanel, onDeletePanel, onReorderPanels,
+  onAddBlock, onUpdateBlock, onDeleteBlock, dragListeners,
 }: Props) {
   const [open, setOpen] = useState(true)
   const [editingNote, setEditingNote] = useState(false)
@@ -32,6 +37,23 @@ export default memo(function PageBlock({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showAddPanel, setShowAddPanel] = useState(false)
   const [selectedShot, setSelectedShot] = useState(SHOT_TYPES[0])
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
+
+  const handlePanelDragEnd = useCallback((event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = page.panels.findIndex(p => p.id === active.id)
+    const newIndex = page.panels.findIndex(p => p.id === over.id)
+    if (oldIndex === -1 || newIndex === -1) return
+    const reordered = [...page.panels]
+    const [moved] = reordered.splice(oldIndex, 1)
+    reordered.splice(newIndex, 0, moved)
+    onReorderPanels(page.id, reordered.map(p => p.id))
+  }, [page.panels, page.id, onReorderPanels])
 
   const saveNote = () => {
     onUpdatePage(page.id, { layoutNote: noteDraft })
@@ -48,6 +70,9 @@ export default memo(function PageBlock({
   return (
     <div role="treeitem" aria-expanded={open} className="border-l-2 border-tag-page/20 group/page ink-fade-in">
       <div className="flex items-center gap-1 w-full">
+        <span {...dragListeners} className="cursor-grab active:cursor-grabbing touch-none pl-2" aria-label="Drag to reorder page">
+          <Grip size={10} className="text-ink-muted shrink-0" />
+        </span>
         <button
           aria-label={open ? 'Collapse page' : 'Expand page'}
           onClick={() => setOpen(!open)}
@@ -95,19 +120,23 @@ export default memo(function PageBlock({
 
       {open && (
         <div className="space-y-1 pb-2">
-          {page.panels.map(panel => (
-            <PanelBlock
-              key={panel.id}
-              panel={panel}
-              episodeId={episodeId}
-              pageId={page.id}
-              onUpdate={(panelId, updates) => onUpdatePanel(page.id, panelId, updates)}
-              onDelete={panelId => onDeletePanel(page.id, panelId)}
-              onAddBlock={(panelId, type) => onAddBlock(page.id, panelId, type)}
-              onUpdateBlock={(panelId, blockId, updates) => onUpdateBlock(page.id, panelId, blockId, updates)}
-              onDeleteBlock={(panelId, blockId) => onDeleteBlock(page.id, panelId, blockId)}
-            />
-          ))}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handlePanelDragEnd}>
+            <SortableContext items={page.panels.map(p => p.id)} strategy={verticalListSortingStrategy}>
+              {page.panels.map(panel => (
+                <SortablePanelBlock
+                  key={panel.id}
+                  panel={panel}
+                  episodeId={episodeId}
+                  pageId={page.id}
+                  onUpdate={(panelId, updates) => onUpdatePanel(page.id, panelId, updates)}
+                  onDelete={panelId => onDeletePanel(page.id, panelId)}
+                  onAddBlock={(panelId, type) => onAddBlock(page.id, panelId, type)}
+                  onUpdateBlock={(panelId, blockId, updates) => onUpdateBlock(page.id, panelId, blockId, updates)}
+                  onDeleteBlock={(panelId, blockId) => onDeleteBlock(page.id, panelId, blockId)}
+                />
+              ))}
+            </SortableContext>
+          </DndContext>
 
           {/* Add panel row */}
           {showAddPanel ? (

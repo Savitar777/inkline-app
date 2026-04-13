@@ -274,7 +274,7 @@ export async function createPage(episodeId: string, number: number, id?: string)
   return pageId
 }
 
-export async function updatePage(pageId: string, updates: { layout_note?: string }) {
+export async function updatePage(pageId: string, updates: { layout_note?: string; number?: number }) {
   const { error } = await supabase.from('pages').update(updates).eq('id', pageId)
   if (error) handleError('updatePage', error)
 }
@@ -328,7 +328,7 @@ export async function createPanel(pageId: string, number: number, shot: string, 
   return panelId
 }
 
-export async function updatePanel(panelId: string, updates: { shot?: string; description?: string; status?: string; asset_url?: string }) {
+export async function updatePanel(panelId: string, updates: { shot?: string; description?: string; status?: string; asset_url?: string; order?: number }) {
   const { error } = await supabase.from('panels').update(updates).eq('id', panelId)
   if (error) handleError('updatePanel', error)
 }

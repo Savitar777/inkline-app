@@ -33,6 +33,8 @@ interface ProjectContextType {
   addCharacter: (char: Omit<Character, 'id'>) => void
   updateCharacter: (id: string, updates: Partial<Omit<Character, 'id'>>) => void
   deleteCharacter: (id: string) => void
+  reorderPages: (episodeId: string, orderedPageIds: string[]) => void
+  reorderPanels: (episodeId: string, pageId: string, orderedPanelIds: string[]) => void
   addThread: (thread: Thread) => void
   updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
   addMessage: (threadId: string, message: Message) => void

@@ -25,9 +25,11 @@ interface Props {
   onAddBlock: (panelId: string, type: ContentBlock['type']) => void
   onUpdateBlock: (panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
   onDeleteBlock: (panelId: string, blockId: string) => void
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  dragListeners?: any
 }
 
-export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelete, onAddBlock, onUpdateBlock, onDeleteBlock }: Props) {
+export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelete, onAddBlock, onUpdateBlock, onDeleteBlock, dragListeners }: Props) {
   const [open, setOpen] = useState(true)
   const [editingDesc, setEditingDesc] = useState(false)
   const [descDraft, setDescDraft] = useState(panel.description)
@@ -60,12 +62,17 @@ export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, on
   return (
     <div role="treeitem" aria-expanded={open} className="ml-4 border-l-2 border-tag-panel/20 group/panel ink-fade-in">
       <div className="flex items-center gap-1 w-full">
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           aria-label={open ? 'Collapse panel' : 'Expand panel'}
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-2 flex-1 px-3 py-2 hover:bg-tag-panel/5 transition-colors text-left"
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setOpen(!open) } }}
+          className="flex items-center gap-2 flex-1 px-3 py-2 hover:bg-tag-panel/5 transition-colors text-left cursor-pointer"
         >
-          <Grip size={10} className="text-ink-muted shrink-0" />
+          <span {...dragListeners} className="cursor-grab active:cursor-grabbing touch-none" aria-label="Drag to reorder panel" onClick={e => e.stopPropagation()}>
+            <Grip size={10} className="text-ink-muted shrink-0" />
+          </span>
           {open ? <ChevronDown size={14} className="text-tag-panel shrink-0" /> : <ChevronRight size={14} className="text-tag-panel shrink-0" />}
           <Tag type="panel">Panel {panel.number}</Tag>
 
@@ -102,7 +109,7 @@ export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, on
               </div>
             )}
           </div>
-        </button>
+        </div>
 
         {/* Delete panel */}
         <button

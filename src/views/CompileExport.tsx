@@ -1,6 +1,7 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import {
   Check,
+  Download,
   FileText,
   FolderOpen,
 } from '../icons'
@@ -8,7 +9,7 @@ import AssemblyPreview from '../components/AssemblyPreview'
 import LetteringOverlay, { type BubbleData, type BubbleFont } from '../components/LetteringOverlay'
 import FormatPicker, { formats } from '../components/compile/FormatPicker'
 import PanelGrid, { type PanelThumb } from '../components/compile/PanelGrid'
-import ExportOptions from '../components/compile/ExportOptions'
+import ExportScopeDialog from '../components/compile/ExportScopeDialog'
 import AssetLibraryDrawer from '../components/compile/AssetLibraryDrawer'
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
@@ -17,6 +18,7 @@ import { generateBubblesFromContent } from '../domain/lettering'
 import { useNotifications } from '../context/NotificationContext'
 import { sendMessage } from '../services/projectService'
 import type { ExportOptions as ExportOpts } from '../services/exportService'
+import type { ExportOutputFormat, ExportScope, ExportPresetId } from '../types/files'
 import { getFormatSpec } from '../lib/assemblyEngine'
 import { getEpisodeById, getReviewablePanels } from '../domain/selectors'
 import { useToast } from '../context/ToastContext'
@@ -49,33 +51,45 @@ export default function CompileExport() {
   const [exporting, setExporting] = useState(false)
   const [previewScale, setPreviewScale] = useState(0.5)
   const [showAssets, setShowAssets] = useState(false)
+  const [showExportDialog, setShowExportDialog] = useState(false)
   const previewRef = useRef<HTMLDivElement>(null)
 
   const episode = getEpisodeById(project, activeEpisodeId)
   const spec = useMemo(() => getFormatSpec(selectedFormat), [selectedFormat])
 
-  const handleExport = useCallback(async (type: string) => {
+  const handleExport = useCallback(async (dialogOpts: {
+    outputFormat: ExportOutputFormat
+    scope: ExportScope
+    pageIds?: string[]
+    panelIds?: string[]
+    preset?: ExportPresetId
+    dpi: number
+    webpQuality?: number
+  }) => {
     if (!previewRef.current || !episode) return
     setExporting(true)
     const opts: ExportOpts = {
       format: selectedFormat,
-      dpi,
+      dpi: dialogOpts.dpi,
       colorProfile: spec.colorProfile,
       title: project.title,
       episodeTitle: episode.title,
     }
     try {
-      const { exportPDF, exportZIP, exportSinglePNG } = await import('../services/exportService')
-      if (type === 'pdf') await exportPDF(previewRef.current, opts)
-      else if (type === 'png') await exportSinglePNG(previewRef.current, opts)
-      else if (type === 'zip') await exportZIP(previewRef.current, opts)
+      const { exportPDF, exportZIP, exportSinglePNG, exportWebP } = await import('../services/exportService')
+      const fmt = dialogOpts.outputFormat
+      if (fmt === 'pdf') await exportPDF(previewRef.current, opts)
+      else if (fmt === 'png') await exportSinglePNG(previewRef.current, opts)
+      else if (fmt === 'zip') await exportZIP(previewRef.current, opts)
+      else if (fmt === 'webp') await exportWebP(previewRef.current, opts)
       showToast('Export complete!', 'success')
     } catch (e) {
       if (import.meta.env.DEV) console.error('Export failed:', e)
       showToast('Export failed. Please try again.', 'error')
     }
     setExporting(false)
-  }, [selectedFormat, dpi, spec, project.title, episode, showToast])
+    setShowExportDialog(false)
+  }, [selectedFormat, spec, project.title, episode, showToast])
 
   const initLettering = useCallback(() => {
     if (!episode) return
@@ -224,7 +238,14 @@ export default function CompileExport() {
                 <FolderOpen size={14} />
                 Assets
               </button>
-              <ExportOptions exporting={exporting} onExport={handleExport} />
+              <button
+                onClick={() => setShowExportDialog(true)}
+                disabled={exporting}
+                className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors disabled:opacity-50"
+              >
+                <Download size={14} />
+                Export
+              </button>
             </div>
           </div>
         </div>
@@ -421,6 +442,16 @@ export default function CompileExport() {
         open={showAssets}
         onClose={() => setShowAssets(false)}
       />
+
+      {/* Export Dialog */}
+      {showExportDialog && episode && (
+        <ExportScopeDialog
+          pages={episode.pages}
+          exporting={exporting}
+          onExport={handleExport}
+          onClose={() => setShowExportDialog(false)}
+        />
+      )}
     </div>
   )
 }

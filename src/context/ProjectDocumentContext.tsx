@@ -42,6 +42,8 @@ interface ProjectDocumentContextType {
   addCharacter: (char: Omit<Character, 'id'>) => void
   updateCharacter: (id: string, updates: Partial<Omit<Character, 'id'>>) => void
   deleteCharacter: (id: string) => void
+  reorderPages: (episodeId: string, orderedPageIds: string[]) => void
+  reorderPanels: (episodeId: string, pageId: string, orderedPanelIds: string[]) => void
   addThread: (thread: Thread) => void
   updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
   addMessage: (threadId: string, message: Message) => void
@@ -283,6 +285,59 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
 
     if (projectId) {
       void svc.deletePage(pageId)
+    }
+  }, [projectId])
+
+  const reorderPages = useCallback((episodeId: string, orderedPageIds: string[]) => {
+    setProject(current => ({
+      ...current,
+      episodes: current.episodes.map(episode =>
+        episode.id === episodeId
+          ? {
+              ...episode,
+              pages: orderedPageIds
+                .map(id => episode.pages.find(p => p.id === id)!)
+                .filter(Boolean)
+                .map((page, index) => ({ ...page, number: index + 1 })),
+            }
+          : episode
+      ),
+    }))
+
+    if (projectId) {
+      orderedPageIds.forEach((id, index) => {
+        void svc.updatePage(id, { number: index + 1 })
+      })
+    }
+  }, [projectId])
+
+  const reorderPanels = useCallback((episodeId: string, pageId: string, orderedPanelIds: string[]) => {
+    setProject(current => ({
+      ...current,
+      episodes: current.episodes.map(episodeItem =>
+        episodeItem.id === episodeId
+          ? {
+              ...episodeItem,
+              pages: episodeItem.pages.map(pageItem =>
+                pageItem.id === pageId
+                  ? {
+                      ...pageItem,
+                      panels: orderedPanelIds
+                        .map(id => pageItem.panels.find(p => p.id === id)!)
+                        .filter(Boolean)
+                        .map((panel, index) => ({ ...panel, number: index + 1 })),
+                    }
+                  : pageItem
+              ),
+            }
+          : episodeItem
+      ),
+    }))
+
+    if (projectId) {
+      orderedPanelIds.forEach((id, index) => {
+        void svc.updatePanel(id, { order: index + 1 })
+      })
     }
   }, [projectId])
 
@@ -569,6 +624,8 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     addCharacter,
     updateCharacter,
     deleteCharacter,
+    reorderPages,
+    reorderPanels,
     addThread,
     updateThread,
     addMessage,
@@ -595,6 +652,8 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     importProject,
     newProject,
     project,
+    reorderPages,
+    reorderPanels,
     setProjectTitle,
     updateCharacter,
     updateContentBlock,
