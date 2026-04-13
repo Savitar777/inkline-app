@@ -69,3 +69,60 @@ export interface Project {
   characters: Character[]
   threads: Thread[]
 }
+
+export interface PanelReviewState {
+  episodeId: string
+  pageId: string
+  panelId: string
+  status: PanelStatus
+  note?: string
+}
+
+export interface WorkspaceSelection {
+  projectId: string | null
+  view: 'editor' | 'collab' | 'compile'
+  episodeId: string | null
+  threadId: string | null
+  selectedFormat: Project['format']
+}
+
+export interface ProjectActivitySummary {
+  pendingReviewCount: number
+  changedSinceSubmissionCount: number
+  unreadCollaborationCount: number
+  exportReadyCount: number
+  totalPanels: number
+  exportReadyPercentage: number
+  exportReady: boolean
+}
+
+export interface ProjectSummary {
+  id: string
+  title: string
+  format: Project['format']
+  createdAt: string
+}
+
+export type SearchScope = 'all' | 'script' | 'collaboration' | 'assets' | 'characters'
+export type SearchResultKind = 'episode' | 'page' | 'panel' | 'character' | 'thread' | 'message'
+
+export interface ProjectSearchResult {
+  id: string
+  kind: SearchResultKind
+  title: string
+  subtitle: string
+  view: 'editor' | 'collab' | 'compile'
+  episodeId?: string
+  pageId?: string
+  panelId?: string
+  threadId?: string
+  keywords: string[]
+}
+
+export interface SyncProjectPatch {
+  title?: string
+  format?: Project['format']
+  episodes?: Episode[]
+  characters?: Character[]
+  threads?: Thread[]
+}

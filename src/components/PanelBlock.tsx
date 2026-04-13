@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { ChevronDown, ChevronRight, Grip, Plus, Trash2, MessageCircle, Quote, Volume2 } from '../icons'
 import Tag from './Tag'
 import ContentBlockView from './ContentBlockView'
+import ConfirmDialog from './workspace/ConfirmDialog'
 import type { Panel, ContentBlock, PanelStatus } from '../types'
 
 const STATUS_BADGE: Record<PanelStatus, { label: string; color: string }> = {
@@ -91,33 +92,13 @@ export default function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelet
         </button>
 
         {/* Delete panel */}
-        {confirmDelete ? (
-          <div className="flex items-center gap-1 pr-2 shrink-0">
-            <span className="text-[10px] text-ink-muted font-sans">Delete panel?</span>
-            <button
-              aria-label="Confirm delete panel"
-              onClick={() => onDelete(panel.id)}
-              className="px-1.5 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors font-sans"
-            >
-              Yes
-            </button>
-            <button
-              aria-label="Cancel delete"
-              onClick={() => setConfirmDelete(false)}
-              className="px-1.5 py-0.5 rounded text-[10px] text-ink-muted hover:text-ink-text transition-colors font-sans"
-            >
-              No
-            </button>
-          </div>
-        ) : (
-          <button
-            aria-label="Delete panel"
-            onClick={() => setConfirmDelete(true)}
-            className="opacity-0 group-hover/panel:opacity-100 mr-2 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
-          >
-            <Trash2 size={12} />
-          </button>
-        )}
+        <button
+          aria-label="Delete panel"
+          onClick={() => setConfirmDelete(true)}
+          className="opacity-0 group-hover/panel:opacity-100 mr-2 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
+        >
+          <Trash2 size={12} />
+        </button>
       </div>
 
       {open && (
@@ -193,6 +174,18 @@ export default function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelet
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`Delete Panel ${panel.number}?`}
+        message="This removes the panel and all of its dialogue, captions, and SFX blocks."
+        confirmLabel="Delete panel"
+        onConfirm={() => {
+          onDelete(panel.id)
+          setConfirmDelete(false)
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   )
 }

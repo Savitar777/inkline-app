@@ -1,0 +1,68 @@
+{
+  "": {
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/primary.swiftdeps"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/App/InklineMacApp.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Models/EditorialModels.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Stores/WorkspaceStore.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Support/SampleData.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/DetailContentView.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/InklineSettingsView.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/OutlineColumnView.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/ProjectSidebarView.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView.dia"
+  },
+  "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/WorkspaceRootView.swift": {
+    "dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView.d",
+    "object": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView.swift.o",
+    "swiftmodule": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView~partial.swiftmodule",
+    "swift-dependencies": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView.swiftdeps",
+    "diagnostics": "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView.dia"
+  }
+}

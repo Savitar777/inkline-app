@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from 'react'
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import {
   Download,
   Check,
@@ -15,12 +15,15 @@ import {
   FileText,
 } from '../icons'
 import AssemblyPreview from '../components/AssemblyPreview'
-import LetteringOverlay, { generateBubblesFromContent, type BubbleData, type BubbleFont } from '../components/LetteringOverlay'
+import LetteringOverlay, { type BubbleData, type BubbleFont } from '../components/LetteringOverlay'
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
+import { useWorkspace } from '../context/WorkspaceContext'
+import { generateBubblesFromContent } from '../domain/lettering'
 import { sendMessage, updateThreadStatus } from '../services/projectService'
-import { exportPDF, exportZIP, exportSinglePNG, type ExportOptions } from '../services/exportService'
+import type { ExportOptions } from '../services/exportService'
 import { getFormatSpec } from '../lib/assemblyEngine'
+import { getEpisodeById, getReviewablePanels } from '../domain/selectors'
 import type { PanelStatus } from '../types'
 
 /* ─── Types ─── */
@@ -33,6 +36,7 @@ interface PanelThumb {
   panel: number
   status: 'complete' | 'missing' | 'review'
   label: string
+  pageId: string
 }
 
 /* ─── Static Data ─── */
@@ -61,7 +65,7 @@ function panelThumbStatus(status: PanelStatus | undefined): PanelThumb['status']
 export default function CompileExport() {
   const { project, activeEpisodeId, updatePanel } = useProject()
   const { user } = useAuth()
-  const [selectedFormat, setSelectedFormat] = useState<Format>('webtoon')
+  const { selectedFormat, setSelectedFormat, registerActionHandler } = useWorkspace()
   const [exportOpen, setExportOpen] = useState(false)
   const [changesNote, setChangesNote] = useState<Record<string, string>>({})
   const [showChangesFor, setShowChangesFor] = useState<string | null>(null)
@@ -73,7 +77,7 @@ export default function CompileExport() {
   const [previewScale, setPreviewScale] = useState(0.5)
   const previewRef = useRef<HTMLDivElement>(null)
 
-  const episode = project.episodes.find(e => e.id === activeEpisodeId)
+  const episode = getEpisodeById(project, activeEpisodeId)
 
   const spec = useMemo(() => getFormatSpec(selectedFormat), [selectedFormat])
 
@@ -89,6 +93,7 @@ export default function CompileExport() {
       episodeTitle: episode.title,
     }
     try {
+      const { exportPDF, exportZIP, exportSinglePNG } = await import('../services/exportService')
       if (type === 'pdf') await exportPDF(previewRef.current, opts)
       else if (type === 'png') await exportSinglePNG(previewRef.current, opts)
       else if (type === 'zip') await exportZIP(previewRef.current, opts)
@@ -113,18 +118,20 @@ export default function CompileExport() {
     setShowLettering(true)
   }, [episode, spec])
 
-  const panels: PanelThumb[] = episode
-    ? episode.pages.flatMap(pg =>
-        pg.panels.map(pan => ({
-          id: pan.id,
-          page: pg.number,
-          panel: pan.number,
-          status: panelThumbStatus(pan.status),
-          label: pan.description ? pan.description.slice(0, 60) : `Panel ${pan.number}`,
-          _pageId: pg.id,
-        }))
-      )
-    : []
+  const panels: PanelThumb[] = useMemo(() => (
+    episode
+      ? episode.pages.flatMap(pg =>
+          pg.panels.map(pan => ({
+            id: pan.id,
+            page: pg.number,
+            panel: pan.number,
+            status: panelThumbStatus(pan.status),
+            label: pan.description ? pan.description.slice(0, 60) : `Panel ${pan.number}`,
+            pageId: pg.id,
+          }))
+        )
+      : []
+  ), [episode])
 
   const completeCount = panels.filter((p) => p.status === 'complete').length
   const reviewCount = panels.filter((p) => p.status === 'review').length
@@ -135,22 +142,27 @@ export default function CompileExport() {
   const allSubmitted = totalCount > 0 && panels.every(p => p.status !== 'missing')
   const allApproved = totalCount > 0 && completeCount === totalCount
 
-  const approve = (panelId: string, pageId: string) => {
+  const syncThreadApprovedStatus = useCallback((approvedPanelIds: Set<string>) => {
+    if (!episode) return
+    const epThread = project.threads.find(t => t.episodeId === episode.id)
+    if (!epThread) return
+
+    const everyPanelApproved = episode.pages
+      .flatMap(pg => pg.panels)
+      .every(panel => approvedPanelIds.has(panel.id) || panel.status === 'approved')
+
+    if (everyPanelApproved) {
+      updateThreadStatus(epThread.id, 'approved')
+    }
+  }, [episode, project.threads])
+
+  const approve = useCallback((panelId: string, pageId: string) => {
     if (!episode) return
     updatePanel(episode.id, pageId, panelId, { status: 'approved' as PanelStatus })
+    syncThreadApprovedStatus(new Set([panelId]))
+  }, [episode, syncThreadApprovedStatus, updatePanel])
 
-    // Check if ALL episode panels are now approved (after this update)
-    const epThread = project.threads.find(t => t.episodeId === episode.id)
-    if (epThread) {
-      const allPanels = episode.pages.flatMap(pg => pg.panels)
-      const otherAllApproved = allPanels.every(p => p.id === panelId || p.status === 'approved')
-      if (otherAllApproved) {
-        updateThreadStatus(epThread.id, 'approved')
-      }
-    }
-  }
-
-  const requestChanges = async (panelId: string, pageId: string) => {
+  const requestChanges = useCallback(async (panelId: string, pageId: string) => {
     if (!episode) return
     updatePanel(episode.id, pageId, panelId, { status: 'changes_requested' as PanelStatus })
 
@@ -168,19 +180,34 @@ export default function CompileExport() {
     }
     setChangesNote(prev => { const n = { ...prev }; delete n[panelId]; return n })
     setShowChangesFor(null)
-  }
+  }, [changesNote, episode, panels, project.threads, updatePanel, user])
 
   // Bulk approve all reviewable panels on a given page
   const bulkApprovePage = useCallback((pageId: string) => {
     if (!episode) return
     const page = episode.pages.find(pg => pg.id === pageId)
     if (!page) return
+    const approvedPanelIds = new Set<string>()
     for (const pan of page.panels) {
       if (pan.status === 'draft_received' || pan.status === 'changes_requested') {
         updatePanel(episode.id, pageId, pan.id, { status: 'approved' as PanelStatus })
+        approvedPanelIds.add(pan.id)
       }
     }
-  }, [episode, updatePanel])
+    if (approvedPanelIds.size > 0) {
+      syncThreadApprovedStatus(approvedPanelIds)
+    }
+  }, [episode, syncThreadApprovedStatus, updatePanel])
+
+  useEffect(() => registerActionHandler('approveNextReviewable', episode ? () => {
+    const next = getReviewablePanels(episode)[0]
+    if (next) approve(next.panelId, next.pageId)
+  } : null), [approve, episode, registerActionHandler])
+
+  useEffect(() => registerActionHandler('requestChangesForNextReviewable', episode ? () => {
+    const next = getReviewablePanels(episode)[0]
+    if (next) setShowChangesFor(next.panelId)
+  } : null), [episode, registerActionHandler])
 
   return (
     <div className="flex h-full">
@@ -384,7 +411,7 @@ export default function CompileExport() {
             <div className="grid grid-cols-4 gap-3">
               {panels.map((p) => {
                 const ep = episode!
-                const pageId = (p as any)._pageId as string
+                const pageId = p.pageId
                 const pan = ep.pages.find(pg => pg.id === pageId)?.panels.find(pan => pan.id === p.id)
                 return (
                 <div

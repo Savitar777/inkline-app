@@ -13,7 +13,10 @@ import {
 import Tag from '../components/Tag'
 import PageBlock from '../components/PageBlock'
 import SubmitToArtistModal from '../components/SubmitToArtistModal'
+import ConfirmDialog from '../components/workspace/ConfirmDialog'
 import { useProject } from '../context/ProjectContext'
+import { useWorkspace } from '../context/WorkspaceContext'
+import { getEpisodeStats } from '../domain/selectors'
 import type { Character } from '../types'
 
 /* ─── Add Character Form ─── */
@@ -131,7 +134,7 @@ function CharacterCard({ char }: { char: Character }) {
 
   return (
     <div className="px-4 py-3 border-b border-ink-border/50 group/char">
-      <div className="flex items-start justify-between mb-1.5">
+        <div className="flex items-start justify-between mb-1.5">
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: char.color }} />
           <span className="text-xs font-mono font-medium text-ink-light">{char.name}</span>
@@ -140,16 +143,9 @@ function CharacterCard({ char }: { char: Character }) {
           <button aria-label="Edit character" onClick={() => setEditing(true)} className="p-0.5 rounded text-ink-muted hover:text-ink-gold transition-colors">
             <Eye size={11} />
           </button>
-          {confirmDel ? (
-            <>
-              <button aria-label="Confirm delete" onClick={() => deleteCharacter(char.id)} className="text-[10px] text-red-400 hover:text-red-300 font-sans">Del?</button>
-              <button aria-label="Cancel" onClick={() => setConfirmDel(false)} className="text-[10px] text-ink-muted font-sans">No</button>
-            </>
-          ) : (
-            <button aria-label="Delete character" onClick={() => setConfirmDel(true)} className="p-0.5 rounded text-ink-muted hover:text-red-400 transition-colors">
-              <Trash2 size={11} />
-            </button>
-          )}
+          <button aria-label="Delete character" onClick={() => setConfirmDel(true)} className="p-0.5 rounded text-ink-muted hover:text-red-400 transition-colors">
+            <Trash2 size={11} />
+          </button>
         </div>
       </div>
       <div className="text-[10px] uppercase tracking-wider text-ink-muted font-sans mb-1.5 flex items-center gap-1">
@@ -157,6 +153,18 @@ function CharacterCard({ char }: { char: Character }) {
         {char.role}
       </div>
       <p className="text-xs text-ink-text font-sans leading-relaxed">{char.desc}</p>
+
+      <ConfirmDialog
+        open={confirmDel}
+        title={`Delete ${char.name}?`}
+        message="This removes the character from the project reference list."
+        confirmLabel="Delete character"
+        onConfirm={() => {
+          deleteCharacter(char.id)
+          setConfirmDel(false)
+        }}
+        onCancel={() => setConfirmDel(false)}
+      />
     </div>
   )
 }
@@ -176,6 +184,7 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
     addContentBlock, updateContentBlock, deleteContentBlock,
     addCharacter,
   } = useProject()
+  const { registerActionHandler } = useWorkspace()
 
   const episode = project.episodes.find(e => e.id === activeEpisodeId)
 
@@ -214,12 +223,12 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
     setEditingBrief(false)
   }
 
-  const stats = episode ? {
-    pages: episode.pages.length,
-    panels: episode.pages.reduce((s, p) => s + p.panels.length, 0),
-    dialogue: episode.pages.reduce((s, p) => s + p.panels.reduce((ps, pan) => ps + pan.content.filter(c => c.type === 'dialogue').length, 0), 0),
-    sfx: episode.pages.reduce((s, p) => s + p.panels.reduce((ps, pan) => ps + pan.content.filter(c => c.type === 'sfx').length, 0), 0),
-  } : { pages: 0, panels: 0, dialogue: 0, sfx: 0 }
+  const stats = getEpisodeStats(episode)
+
+  useEffect(() => registerActionHandler('submitToArtist', episode ? () => setShowSubmit(true) : null), [
+    episode,
+    registerActionHandler,
+  ])
 
   return (
     <div className="flex h-full">
@@ -261,21 +270,13 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
                   </div>
                 </div>
               </button>
-              {confirmDelEp === ep.id ? (
-                <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-1 bg-ink-dark border border-ink-border rounded px-1.5 py-1 z-10">
-                  <span className="text-[10px] text-ink-muted font-sans">Delete?</span>
-                  <button aria-label="Confirm delete episode" onClick={() => { deleteEpisode(ep.id); setConfirmDelEp(null) }} className="text-[10px] text-red-400 hover:text-red-300 font-sans">Yes</button>
-                  <button aria-label="Cancel delete episode" onClick={() => setConfirmDelEp(null)} className="text-[10px] text-ink-muted font-sans">No</button>
-                </div>
-              ) : (
-                <button
-                  aria-label="Delete episode"
-                  onClick={e => { e.stopPropagation(); setConfirmDelEp(ep.id) }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/ep:opacity-100 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all"
-                >
-                  <Trash2 size={11} />
-                </button>
-              )}
+              <button
+                aria-label="Delete episode"
+                onClick={e => { e.stopPropagation(); setConfirmDelEp(ep.id) }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover/ep:opacity-100 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all"
+              >
+                <Trash2 size={11} />
+              </button>
             </div>
           ))}
         </div>
@@ -460,6 +461,18 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
           onSubmitted={() => { setShowSubmit(false); onGoToCollab?.() }}
         />
       )}
+
+      <ConfirmDialog
+        open={!!confirmDelEp}
+        title="Delete Episode?"
+        message="This removes the episode and all of its pages, panels, and collaboration context."
+        confirmLabel="Delete episode"
+        onConfirm={() => {
+          if (confirmDelEp) deleteEpisode(confirmDelEp)
+          setConfirmDelEp(null)
+        }}
+        onCancel={() => setConfirmDelEp(null)}
+      />
     </div>
   )
 }

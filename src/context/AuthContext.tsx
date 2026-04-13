@@ -1,9 +1,11 @@
+/* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useState, type ReactNode } from 'react'
 import type { User, Session } from '@supabase/supabase-js'
 import { supabase } from '../lib/supabase'
+import { isSupabaseConfigured } from '../lib/supabase'
 import type { UserRole } from '../lib/database.types'
 
-interface Profile {
+export interface Profile {
   id: string
   email: string
   name: string
@@ -19,15 +21,40 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string, role: UserRole) => Promise<string | null>
   signIn: (email: string, password: string) => Promise<string | null>
   signOut: () => Promise<void>
+  updateProfile: (updates: Pick<Profile, 'name' | 'avatar_url'>) => Promise<string | null>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
+const OFFLINE_PROFILE_KEY = 'inkline-offline-profile'
+
+function loadOfflineProfile(): Profile {
+  const fallback: Profile = {
+    id: 'offline-demo-user',
+    email: 'offline@inkline.local',
+    name: 'Local Creator',
+    role: 'writer',
+    avatar_url: null,
+  }
+
+  try {
+    const saved = localStorage.getItem(OFFLINE_PROFILE_KEY)
+    if (!saved) return fallback
+    return {
+      ...fallback,
+      ...(JSON.parse(saved) as Partial<Profile>),
+    }
+  } catch {
+    return fallback
+  }
+}
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [profile, setProfile] = useState<Profile | null>(null)
+  const [profile, setProfile] = useState<Profile | null>(() => (
+    isSupabaseConfigured ? null : loadOfflineProfile()
+  ))
   const [session, setSession] = useState<Session | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(isSupabaseConfigured)
 
   const fetchProfile = async (userId: string): Promise<Profile | null> => {
     try {
@@ -47,6 +74,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   useEffect(() => {
+    if (!isSupabaseConfigured) return
+
     // 1. Set up listener first so we don't miss events
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session)
@@ -69,6 +98,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const signUp = async (email: string, password: string, name: string, role: UserRole): Promise<string | null> => {
+    if (!isSupabaseConfigured) return 'Auth is unavailable in offline mode.'
+
     const { error } = await supabase.auth.signUp({
       email,
       password,
@@ -78,16 +109,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   const signIn = async (email: string, password: string): Promise<string | null> => {
+    if (!isSupabaseConfigured) return 'Auth is unavailable in offline mode.'
+
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     return error?.message ?? null
   }
 
   const signOut = async () => {
+    if (!isSupabaseConfigured) return
     await supabase.auth.signOut()
   }
 
+  const updateProfile = async (updates: Pick<Profile, 'name' | 'avatar_url'>): Promise<string | null> => {
+    if (!profile) return 'No profile is available to update.'
+
+    if (!isSupabaseConfigured) {
+      const nextProfile = { ...profile, ...updates }
+      setProfile(nextProfile)
+      localStorage.setItem(OFFLINE_PROFILE_KEY, JSON.stringify(nextProfile))
+      return null
+    }
+
+    const { data, error } = await supabase
+      .from('users')
+      .update({
+        name: updates.name,
+        avatar_url: updates.avatar_url,
+      })
+      .eq('id', profile.id)
+      .select('*')
+      .single()
+
+    if (error) {
+      console.error('[AuthContext] updateProfile:', error)
+      return error.message
+    }
+
+    setProfile(data as Profile)
+    return null
+  }
+
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, signUp, signIn, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

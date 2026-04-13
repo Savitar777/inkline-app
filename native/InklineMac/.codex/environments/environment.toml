@@ -1,0 +1,2 @@
+[run]
+cmd = "./script/build_and_run.sh"

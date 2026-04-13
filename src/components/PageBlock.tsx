@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ChevronDown, ChevronRight, Plus, Trash2 } from '../icons'
 import Tag from './Tag'
 import PanelBlock from './PanelBlock'
+import ConfirmDialog from './workspace/ConfirmDialog'
 import type { Page, Panel, ContentBlock } from '../types'
 
 const SHOT_TYPES = ['Wide / Establishing', 'Wide', 'Medium-wide', 'Medium', 'Close-up', 'Extreme close-up', 'Over-the-shoulder', 'POV', 'Insert']
@@ -83,21 +84,13 @@ export default function PageBlock({
         </button>
 
         {/* Delete page */}
-        {confirmDelete ? (
-          <div className="flex items-center gap-1 pr-2 shrink-0">
-            <span className="text-[10px] text-ink-muted font-sans">Delete page?</span>
-            <button aria-label="Confirm delete page" onClick={() => onDeletePage(page.id)} className="px-1.5 py-0.5 rounded text-[10px] bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors font-sans">Yes</button>
-            <button aria-label="Cancel delete" onClick={() => setConfirmDelete(false)} className="px-1.5 py-0.5 rounded text-[10px] text-ink-muted hover:text-ink-text transition-colors font-sans">No</button>
-          </div>
-        ) : (
-          <button
-            aria-label="Delete page"
-            onClick={() => setConfirmDelete(true)}
-            className="opacity-0 group-hover/page:opacity-100 mr-2 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
-          >
-            <Trash2 size={12} />
-          </button>
-        )}
+        <button
+          aria-label="Delete page"
+          onClick={() => setConfirmDelete(true)}
+          className="opacity-0 group-hover/page:opacity-100 mr-2 p-1 rounded text-ink-muted hover:text-red-400 hover:bg-red-400/10 transition-all shrink-0"
+        >
+          <Trash2 size={12} />
+        </button>
       </div>
 
       {open && (
@@ -153,6 +146,18 @@ export default function PageBlock({
           )}
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title={`Delete Page ${page.number}?`}
+        message="This removes the page and all of its panels from the current episode."
+        confirmLabel="Delete page"
+        onConfirm={() => {
+          onDeletePage(page.id)
+          setConfirmDelete(false)
+        }}
+        onCancel={() => setConfirmDelete(false)}
+      />
     </div>
   )
 }

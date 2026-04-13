@@ -1,7 +1,63 @@
 import { supabase } from '../lib/supabase'
+import { formatShortTime } from '../domain/time'
+import type { Database } from '../lib/database.types'
 import type { Project, Episode, ContentBlock, Character, Thread, Message } from '../types'
 
 /* ─── Helpers ─── */
+
+type ProjectRow = Database['public']['Tables']['projects']['Row']
+type EpisodeRow = Database['public']['Tables']['episodes']['Row']
+type PageRow = Database['public']['Tables']['pages']['Row']
+type PanelRow = Database['public']['Tables']['panels']['Row']
+type ContentBlockRow = Database['public']['Tables']['content_blocks']['Row']
+type CharacterRow = Database['public']['Tables']['characters']['Row']
+type ThreadRow = Database['public']['Tables']['threads']['Row']
+type MessageRow = Database['public']['Tables']['messages']['Row']
+type PanelAssetRow = Database['public']['Tables']['panel_assets']['Row']
+type UserRow = Database['public']['Tables']['users']['Row']
+type MessageInsert = Database['public']['Tables']['messages']['Insert']
+
+interface EpisodeWithPages extends EpisodeRow {
+  pages?: PageWithPanels[] | null
+}
+
+interface PageWithPanels extends PageRow {
+  panels?: PanelWithBlocks[] | null
+}
+
+interface PanelWithBlocks extends PanelRow {
+  content_blocks?: ContentBlockRow[] | null
+}
+
+interface MessageWithSender extends MessageRow {
+  sender?: Pick<UserRow, 'id' | 'name' | 'role'> | null
+}
+
+interface ThreadWithMessages extends ThreadRow {
+  messages?: MessageWithSender[] | null
+}
+
+type ProjectListRow = Pick<ProjectRow, 'id' | 'title' | 'format' | 'created_at'>
+
+interface ProjectMembershipRow {
+  project: ProjectListRow | ProjectListRow[] | null
+}
+
+type CollaboratorIdentity = Pick<UserRow, 'id' | 'name' | 'role' | 'email' | 'avatar_url'>
+
+interface ProjectOwnerRow {
+  owner_id: string
+  owner: CollaboratorIdentity | CollaboratorIdentity[] | null
+}
+
+interface ProjectMemberRow {
+  user: CollaboratorIdentity | CollaboratorIdentity[] | null
+}
+
+function unwrapRelation<T>(value: T | T[] | null | undefined): T | null {
+  if (Array.isArray(value)) return value[0] ?? null
+  return value ?? null
+}
 
 function uuid(): string {
   return crypto.randomUUID()
@@ -46,20 +102,20 @@ export async function fetchProject(projectId: string): Promise<Project | null> {
   if (charsErr) handleError('fetchProject.characters', charsErr)
   if (threadsErr) handleError('fetchProject.threads', threadsErr)
 
-  const episodes: Episode[] = (eps ?? []).map((ep: any) => ({
+  const episodes: Episode[] = ((eps ?? []) as EpisodeWithPages[]).map(ep => ({
     id: ep.id,
     number: ep.number,
     title: ep.title,
     brief: ep.brief,
     pages: (ep.pages ?? [])
-      .sort((a: any, b: any) => a.number - b.number)
-      .map((pg: any) => ({
+      .sort((a, b) => a.number - b.number)
+      .map(pg => ({
         id: pg.id,
         number: pg.number,
         layoutNote: pg.layout_note,
         panels: (pg.panels ?? [])
-          .sort((a: any, b: any) => a.order - b.order)
-          .map((pan: any) => ({
+          .sort((a, b) => a.order - b.order)
+          .map(pan => ({
             id: pan.id,
             number: pan.number,
             shot: pan.shot,
@@ -67,35 +123,35 @@ export async function fetchProject(projectId: string): Promise<Project | null> {
             status: pan.status ?? undefined,
             assetUrl: pan.asset_url ?? undefined,
             content: (pan.content_blocks ?? [])
-              .sort((a: any, b: any) => a.order - b.order)
-              .map((b: any) => ({
-                id: b.id,
-                type: b.type as ContentBlock['type'],
-                character: b.character ?? undefined,
-                parenthetical: b.parenthetical ?? undefined,
-                text: b.text,
+              .sort((a, b) => a.order - b.order)
+              .map(block => ({
+                id: block.id,
+                type: block.type as ContentBlock['type'],
+                character: block.character ?? undefined,
+                parenthetical: block.parenthetical ?? undefined,
+                text: block.text,
               })),
           })),
       })),
   }))
 
-  const mappedThreads: Thread[] = (threads ?? []).map((t: any) => ({
-    id: t.id,
-    episodeId: t.episode_id,
-    label: t.label,
-    pageRange: t.page_range,
-    status: t.status as Thread['status'],
+  const mappedThreads: Thread[] = ((threads ?? []) as ThreadWithMessages[]).map(thread => ({
+    id: thread.id,
+    episodeId: thread.episode_id,
+    label: thread.label,
+    pageRange: thread.page_range,
+    status: thread.status as Thread['status'],
     unread: 0,
-    messages: (t.messages ?? [])
-      .sort((a: any, b: any) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
-      .map((m: any) => ({
-        id: m.id,
-        sender: (m.sender?.role === 'artist' ? 'artist' : 'writer') as Message['sender'],
-        name: m.sender?.name ?? 'Unknown',
-        text: m.text ?? undefined,
-        image: !!m.attachment_url,
-        imageLabel: m.attachment_url ?? undefined,
-        timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    messages: (thread.messages ?? [])
+      .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+      .map(message => ({
+        id: message.id,
+        sender: (message.sender?.role === 'artist' ? 'artist' : 'writer') as Message['sender'],
+        name: message.sender?.name ?? 'Unknown',
+        text: message.text ?? undefined,
+        image: !!message.attachment_url,
+        imageLabel: message.attachment_url ?? undefined,
+        timestamp: formatShortTime(message.created_at),
       })),
   }))
 
@@ -104,8 +160,12 @@ export async function fetchProject(projectId: string): Promise<Project | null> {
     title: proj.title,
     format: proj.format as Project['format'],
     episodes,
-    characters: (chars ?? []).map((c: any) => ({
-      id: c.id, name: c.name, role: c.role, desc: c.description ?? c.desc ?? '', color: c.color,
+    characters: ((chars ?? []) as CharacterRow[]).map(character => ({
+      id: character.id,
+      name: character.name,
+      role: character.role,
+      desc: character.description ?? '',
+      color: character.color,
     })),
     threads: mappedThreads,
   }
@@ -126,11 +186,11 @@ export async function listProjects(userId: string) {
   ])
 
   const ownedList = owned ?? []
-  const memberList = (memberOf ?? [])
-    .map((m: any) => m.project)
-    .filter(Boolean)
+  const memberList = ((memberOf ?? []) as unknown as ProjectMembershipRow[])
+    .map(member => unwrapRelation(member.project))
+    .filter((project): project is ProjectListRow => Boolean(project))
   const ownedIds = new Set(ownedList.map(p => p.id))
-  return [...ownedList, ...memberList.filter((p: any) => !ownedIds.has(p.id))]
+  return [...ownedList, ...memberList.filter(project => !ownedIds.has(project.id))]
 }
 
 export async function createProject(title: string, format: Project['format'], ownerId: string): Promise<string | null> {
@@ -184,8 +244,40 @@ export async function updatePage(pageId: string, updates: { layout_note?: string
 }
 
 export async function deletePage(pageId: string) {
+  const { data: page, error: pageErr } = await supabase
+    .from('pages')
+    .select('episode_id')
+    .eq('id', pageId)
+    .single()
+
+  if (pageErr || !page) {
+    handleError('deletePage.lookup', pageErr)
+    return
+  }
+
   const { error } = await supabase.from('pages').delete().eq('id', pageId)
-  if (error) handleError('deletePage', error)
+  if (error) {
+    handleError('deletePage', error)
+    return
+  }
+
+  const { data: remainingPages, error: remainingErr } = await supabase
+    .from('pages')
+    .select('id')
+    .eq('episode_id', page.episode_id)
+    .order('number')
+
+  if (remainingErr) {
+    handleError('deletePage.renumber.fetch', remainingErr)
+    return
+  }
+
+  await Promise.all((remainingPages ?? []).map((remainingPage, index) =>
+    supabase
+      .from('pages')
+      .update({ number: index + 1 })
+      .eq('id', remainingPage.id)
+  ))
 }
 
 /* ─── Panel ─── */
@@ -205,8 +297,40 @@ export async function updatePanel(panelId: string, updates: { shot?: string; des
 }
 
 export async function deletePanel(panelId: string) {
+  const { data: panel, error: panelErr } = await supabase
+    .from('panels')
+    .select('page_id')
+    .eq('id', panelId)
+    .single()
+
+  if (panelErr || !panel) {
+    handleError('deletePanel.lookup', panelErr)
+    return
+  }
+
   const { error } = await supabase.from('panels').delete().eq('id', panelId)
-  if (error) handleError('deletePanel', error)
+  if (error) {
+    handleError('deletePanel', error)
+    return
+  }
+
+  const { data: remainingPanels, error: remainingErr } = await supabase
+    .from('panels')
+    .select('id')
+    .eq('page_id', panel.page_id)
+    .order('order')
+
+  if (remainingErr) {
+    handleError('deletePanel.renumber.fetch', remainingErr)
+    return
+  }
+
+  await Promise.all((remainingPanels ?? []).map((remainingPanel, index) =>
+    supabase
+      .from('panels')
+      .update({ number: index + 1, order: index + 1 })
+      .eq('id', remainingPanel.id)
+  ))
 }
 
 /* ─── Content Block ─── */
@@ -254,8 +378,12 @@ export async function createCharacter(
 }
 
 export async function updateCharacter(charId: string, updates: Partial<Omit<Character, 'id'>>) {
-  const dbUpdates: Record<string, any> = { ...updates }
-  if ('desc' in dbUpdates) { dbUpdates.description = dbUpdates.desc; delete dbUpdates.desc }
+  const dbUpdates: Partial<CharacterRow> = {
+    name: updates.name,
+    role: updates.role,
+    color: updates.color,
+    description: updates.desc,
+  }
   const { error } = await supabase.from('characters').update(dbUpdates).eq('id', charId)
   if (error) handleError('updateCharacter', error)
 }
@@ -286,8 +414,12 @@ export async function sendMessage(
   text: string,
   attachmentUrl?: string,
 ): Promise<string | null> {
-  const row: Record<string, any> = { thread_id: threadId, sender_id: senderId, text }
-  if (attachmentUrl) row.attachment_url = attachmentUrl
+  const row: MessageInsert = {
+    thread_id: threadId,
+    sender_id: senderId,
+    text,
+    attachment_url: attachmentUrl ?? null,
+  }
   const { data, error } = await supabase
     .from('messages')
     .insert(row)
@@ -351,15 +483,27 @@ export async function fetchCollaborators(projectId: string): Promise<Collaborato
 
   const result: Collaborator[] = []
 
-  if (proj?.owner) {
-    const o = proj.owner as any
-    result.push({ id: o.id, name: o.name, role: o.role, email: o.email, avatarUrl: o.avatar_url })
+  const owner = unwrapRelation((proj as unknown as ProjectOwnerRow | null)?.owner)
+  if (owner) {
+    result.push({
+      id: owner.id,
+      name: owner.name,
+      role: owner.role,
+      email: owner.email,
+      avatarUrl: owner.avatar_url,
+    })
   }
 
-  for (const m of members ?? []) {
-    const u = (m as any).user
-    if (u && !result.some(r => r.id === u.id)) {
-      result.push({ id: u.id, name: u.name, role: u.role, email: u.email, avatarUrl: u.avatar_url })
+  for (const member of (members ?? []) as unknown as ProjectMemberRow[]) {
+    const user = unwrapRelation(member.user)
+    if (user && !result.some(existing => existing.id === user.id)) {
+      result.push({
+        id: user.id,
+        name: user.name,
+        role: user.role,
+        email: user.email,
+        avatarUrl: user.avatar_url,
+      })
     }
   }
 
@@ -394,7 +538,7 @@ export async function uploadPanelArtwork(
     .order('version', { ascending: false })
     .limit(1)
 
-  const version = (existing?.[0]?.version ?? 0) + 1
+  const version = (((existing ?? []) as Pick<PanelAssetRow, 'version'>[])[0]?.version ?? 0) + 1
 
   const { data: asset, error: assetErr } = await supabase
     .from('panel_assets')

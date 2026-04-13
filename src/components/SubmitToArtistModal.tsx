@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Send, Check, X } from '../icons'
 import type { Episode, PanelStatus } from '../types'
 import { useProject } from '../context/ProjectContext'
+import { useWorkspace } from '../context/WorkspaceContext'
 import { createThread } from '../services/projectService'
 import { useAuth } from '../context/AuthContext'
 
@@ -14,6 +15,7 @@ interface Props {
 export default function SubmitToArtistModal({ episode, onClose, onSubmitted }: Props) {
   const { project, updatePanel } = useProject()
   const { user } = useAuth()
+  const { setActiveThreadId } = useWorkspace()
 
   const [selectedPageIds, setSelectedPageIds] = useState<Set<string>>(
     new Set(episode.pages.map(p => p.id))
@@ -49,12 +51,13 @@ export default function SubmitToArtistModal({ episode, onClose, onSubmitted }: P
 
     // Create a collaboration thread (online mode only)
     if (user && project.id) {
-      await createThread(
+      const threadId = await createThread(
         project.id,
         episode.id,
         `EP${episode.number} — ${episode.title}`,
         pageRange,
       )
+      if (threadId) setActiveThreadId(threadId)
     }
 
     setSubmitting(false)

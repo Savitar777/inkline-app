@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type DragEvent } from 'react'
 import {
   Send,
   Paperclip,
@@ -11,11 +11,15 @@ import {
 } from '../icons'
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
+import { useWorkspace } from '../context/WorkspaceContext'
 import { supabase } from '../lib/supabase'
 import { isSupabaseConfigured } from '../lib/supabase'
+import { getDefaultThreadId, getEpisodeById, getEpisodeThreads } from '../domain/selectors'
+import { formatShortTime } from '../domain/time'
 import { sendMessage, inviteMember, uploadPanelArtwork, fetchCollaborators, updateThreadStatus } from '../services/projectService'
 import type { Collaborator } from '../services/projectService'
 import type { Thread, Message, Panel } from '../types'
+import type { RealtimePostgresInsertPayload, RealtimePresenceState } from '@supabase/supabase-js'
 
 const statusConfig: Record<string, { label: string; color: string; icon: React.ReactNode }> = {
   submitted: { label: 'Submitted', color: 'text-status-submitted bg-status-submitted/10 border-status-submitted/30', icon: <Send size={10} /> },
@@ -36,22 +40,41 @@ const MOCK_COLLABORATORS = [
   { name: 'Jake Torres', role: 'letterer', status: 'offline', avatar: 'J' },
 ]
 
+interface MessageRow {
+  id: string
+  sender_id: string
+  text: string | null
+  attachment_url: string | null
+  created_at: string
+}
+
+interface TypingPresence {
+  typing?: boolean
+}
+
+function applyThreadMessages(
+  previous: Record<string, Message[]>,
+  threadId: string,
+  updater: (messages: Message[]) => Message[],
+  fallbackThreads: Thread[],
+) {
+  const baseMessages = previous[threadId] ?? fallbackThreads.find(thread => thread.id === threadId)?.messages ?? []
+  return { ...previous, [threadId]: updater(baseMessages) }
+}
+
 /* ─── Component ─── */
 
 export default function Collaboration() {
   const { project, activeEpisodeId, updatePanel } = useProject()
   const { user, profile } = useAuth()
+  const { activeThreadId, setActiveThreadId } = useWorkspace()
 
-  const episodeThreads: Thread[] = activeEpisodeId
-    ? project.threads.filter(t => t.episodeId === activeEpisodeId)
-    : project.threads
-
-  const activeEpisode = project.episodes.find(e => e.id === activeEpisodeId)
-
-  const [activeThread, setActiveThread] = useState<string>(() => episodeThreads[0]?.id ?? '')
+  const episodeThreads: Thread[] = getEpisodeThreads(project, activeEpisodeId)
+  const activeEpisode = getEpisodeById(project, activeEpisodeId)
+  const defaultThreadId = getDefaultThreadId(project, activeEpisodeId) ?? ''
   const [inputText, setInputText] = useState('')
   const [sending, setSending] = useState(false)
-  const [liveMessages, setLiveMessages] = useState<Message[]>([])
+  const [liveMessagesByThread, setLiveMessagesByThread] = useState<Record<string, Message[]>>({})
   const [showInvite, setShowInvite] = useState(false)
   const [inviteEmail, setInviteEmail] = useState('')
   const [inviteRole, setInviteRole] = useState('artist')
@@ -68,6 +91,14 @@ export default function Collaboration() {
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const localMessageCounter = useRef(0)
+  const threadsRef = useRef(episodeThreads)
+
+  const resolvedActiveThread = episodeThreads.some(thread => thread.id === activeThreadId)
+    ? activeThreadId ?? defaultThreadId
+    : defaultThreadId
+  const senderRole = profile?.role === 'artist' ? 'artist' : 'writer'
 
   // All panels from current episode, flattened for the panel picker
   const allPanels: (Panel & { pageNumber: number; pageId: string })[] = activeEpisode
@@ -76,23 +107,38 @@ export default function Collaboration() {
       )
     : []
 
-  const handleFileSelect = useCallback((file: File) => {
+  useEffect(() => {
+    threadsRef.current = episodeThreads
+  }, [episodeThreads])
+
+  const createLocalMessageId = () => {
+    localMessageCounter.current += 1
+    return `local-${localMessageCounter.current}`
+  }
+
+  useEffect(() => {
+    if (resolvedActiveThread && resolvedActiveThread !== activeThreadId) {
+      setActiveThreadId(resolvedActiveThread)
+    }
+  }, [activeThreadId, resolvedActiveThread, setActiveThreadId])
+
+  const handleFileSelect = (file: File) => {
     if (!file.type.startsWith('image/')) return
     setUploadFile(file)
     const reader = new FileReader()
     reader.onload = e => setUploadPreview(e.target?.result as string)
     reader.readAsDataURL(file)
-  }, [])
+  }
 
-  const handleDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
+  const handleDrop = (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setDragOver(false)
     const file = e.dataTransfer.files?.[0]
     if (file) handleFileSelect(file)
-  }, [handleFileSelect])
+  }
 
-  const attachUpload = useCallback(async () => {
-    if (!uploadPreview || !activeThread) return
+  const attachUpload = async () => {
+    if (!uploadPreview || !resolvedActiveThread) return
 
     // Online mode: upload to Supabase Storage and link to panel
     if (isSupabaseConfigured && user && project.id && uploadFile && selectedPanelId) {
@@ -107,45 +153,34 @@ export default function Collaboration() {
         }
         // Send notification message in thread and update thread status
         const panLabel = pan ? `P${pan.pageNumber}/Panel ${pan.number}` : 'a panel'
-        await sendMessage(activeThread, user.id, `Uploaded draft artwork for ${panLabel}`, result.url)
+        await sendMessage(resolvedActiveThread, user.id, `Uploaded draft artwork for ${panLabel}`, result.url)
         // Update thread status to draft_received
-        const epThread = episodeThreads.find(t => t.id === activeThread)
+        const epThread = episodeThreads.find(t => t.id === resolvedActiveThread)
         if (epThread && epThread.status !== 'approved') {
-          updateThreadStatus(activeThread, 'draft_received')
+          updateThreadStatus(resolvedActiveThread, 'draft_received')
         }
       }
     } else {
       // Offline mode: append locally
       const msg: Message = {
-        id: `${Date.now()}`,
-        sender: profile?.role === 'artist' ? 'artist' : 'writer',
+        id: createLocalMessageId(),
+        sender: senderRole,
         name: profile?.name ?? 'Artist',
         image: true,
         imageLabel: 'Draft artwork',
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatShortTime(new Date()),
       }
-      setLiveMessages(prev => [...prev, msg])
+      setLiveMessagesByThread(prev => applyThreadMessages(prev, resolvedActiveThread, messages => [...messages, msg], threadsRef.current))
     }
     setUploadPreview(null)
     setUploadFile(null)
     setSelectedPanelId('')
     setShowUpload(false)
-  }, [uploadPreview, activeThread, profile, user, project.id, uploadFile, selectedPanelId, allPanels, activeEpisode])
-
-  useEffect(() => {
-    const first = episodeThreads[0]?.id ?? ''
-    setActiveThread(first)
-  }, [activeEpisodeId])
-
-  // Sync live messages when thread changes
-  useEffect(() => {
-    const base = episodeThreads.find(t => t.id === activeThread)?.messages ?? []
-    setLiveMessages(base)
-  }, [activeThread, project.threads])
+  }
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [liveMessages])
+  }, [liveMessagesByThread, resolvedActiveThread])
 
   // Fetch real collaborators
   useEffect(() => {
@@ -155,101 +190,111 @@ export default function Collaboration() {
 
   // Supabase Realtime — subscribe to new messages on the active thread
   useEffect(() => {
-    if (!activeThread || !user) return
+    if (!resolvedActiveThread || !user) return
     const channel = supabase
-      .channel(`messages:${activeThread}`)
+      .channel(`messages:${resolvedActiveThread}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${activeThread}` },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `thread_id=eq.${resolvedActiveThread}` },
         payload => {
-          const row = payload.new as any
+          const row = (payload as RealtimePostgresInsertPayload<MessageRow>).new
           // Deduplicate: skip if this message was sent by the current user (already in state)
           if (row.sender_id === user.id) return
           // Look up sender name from collaborators list
-          const senderName = collaborators.find(c => c.id === row.sender_id)?.name ?? row.sender_id?.slice(0, 8)
+          const sender = collaborators.find(c => c.id === row.sender_id)
+          const senderName = sender?.name ?? row.sender_id?.slice(0, 8)
           const msg: Message = {
             id: row.id,
-            sender: 'artist',
+            sender: sender?.role === 'artist' ? 'artist' : 'writer',
             name: senderName,
             text: row.text ?? undefined,
             image: !!row.attachment_url,
             imageLabel: row.attachment_url ?? undefined,
-            timestamp: new Date(row.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            timestamp: formatShortTime(row.created_at),
           }
-          setLiveMessages(prev => {
-            // Extra safety: don't add if already present
-            if (prev.some(m => m.id === row.id)) return prev
-            return [...prev, msg]
-          })
+          setLiveMessagesByThread(prev => applyThreadMessages(
+            prev,
+            resolvedActiveThread,
+            messages => (messages.some(message => message.id === row.id) ? messages : [...messages, msg]),
+            threadsRef.current,
+          ))
         },
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [activeThread, user])
+  }, [collaborators, resolvedActiveThread, user])
 
   // Typing indicators via Supabase Realtime Presence
   useEffect(() => {
-    if (!activeThread || !user || !isSupabaseConfigured) return
-    const channel = supabase.channel(`typing:${activeThread}`, { config: { presence: { key: user.id } } })
+    if (!resolvedActiveThread || !user || !isSupabaseConfigured) return
+    const channel = supabase.channel(`typing:${resolvedActiveThread}`, { config: { presence: { key: user.id } } })
+    typingChannelRef.current = channel
     channel
       .on('presence', { event: 'sync' }, () => {
-        const state = channel.presenceState()
+        const state = channel.presenceState<TypingPresence>() as RealtimePresenceState<TypingPresence>
         const typing = new Set<string>()
         for (const [uid, presences] of Object.entries(state)) {
-          if (uid !== user.id && (presences as any[]).some((p: any) => p.typing)) {
+          if (uid !== user.id && presences.some(presence => presence.typing)) {
             typing.add(uid)
           }
         }
         setTypingUsers(typing)
       })
       .subscribe()
-    return () => { supabase.removeChannel(channel) }
-  }, [activeThread, user])
+    return () => {
+      clearTimeout(typingTimeout.current)
+      typingChannelRef.current = null
+      supabase.removeChannel(channel)
+    }
+  }, [resolvedActiveThread, user])
 
   // Broadcast typing state when user types
-  const broadcastTyping = useCallback(() => {
-    if (!activeThread || !user || !isSupabaseConfigured) return
-    const channel = supabase.channel(`typing:${activeThread}`)
-    channel.track({ typing: true })
+  const broadcastTyping = () => {
+    if (!resolvedActiveThread || !user || !isSupabaseConfigured || !typingChannelRef.current) return
+    typingChannelRef.current.track({ typing: true })
     clearTimeout(typingTimeout.current)
     typingTimeout.current = setTimeout(() => {
-      channel.track({ typing: false })
+      typingChannelRef.current?.track({ typing: false })
     }, 2000)
-  }, [activeThread, user])
+  }
 
-  const handleSend = useCallback(async () => {
+  const handleSend = async () => {
     const text = inputText.trim()
     if (!text || sending) return
     setSending(true)
     setInputText('')
 
-    if (user && activeThread) {
+    if (user && resolvedActiveThread) {
       // Online mode — send via Supabase, add to local state immediately (realtime skips own messages)
-      const msgId = await sendMessage(activeThread, user.id, text)
+      const msgId = await sendMessage(resolvedActiveThread, user.id, text)
       const localMsg: Message = {
-        id: msgId ?? `${Date.now()}`,
-        sender: 'writer',
+        id: msgId ?? createLocalMessageId(),
+        sender: senderRole,
         name: profile?.name ?? 'You',
         text,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatShortTime(new Date()),
       }
-      setLiveMessages(prev => [...prev, localMsg])
+      setLiveMessagesByThread(prev => applyThreadMessages(prev, resolvedActiveThread, messages => [...messages, localMsg], threadsRef.current))
     } else {
       // Offline mode — append locally
       const msg: Message = {
-        id: `${Date.now()}`,
-        sender: 'writer',
+        id: createLocalMessageId(),
+        sender: senderRole,
         name: profile?.name ?? 'You',
         text,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        timestamp: formatShortTime(new Date()),
       }
-      setLiveMessages(prev => [...prev, msg])
+      if (resolvedActiveThread) {
+        setLiveMessagesByThread(prev => applyThreadMessages(prev, resolvedActiveThread, messages => [...messages, msg], threadsRef.current))
+      }
     }
     setSending(false)
-  }, [inputText, sending, user, activeThread, profile])
+  }
 
-  const thread = episodeThreads.find(t => t.id === activeThread) ?? null
-  const displayMessages = liveMessages.length > 0 ? liveMessages : (thread?.messages ?? [])
+  const thread = episodeThreads.find(t => t.id === resolvedActiveThread) ?? null
+  const displayMessages: Message[] = thread
+    ? (liveMessagesByThread[resolvedActiveThread] ?? thread.messages)
+    : []
 
   // Derive page tracker from real panel statuses
   const pageTracker = activeEpisode?.pages.map(pg => {
@@ -298,13 +343,13 @@ export default function Collaboration() {
             return (
               <button
                 key={t.id}
-                onClick={() => setActiveThread(t.id)}
+                onClick={() => setActiveThreadId(t.id)}
                 className={`w-full text-left px-4 py-3 border-b border-ink-border/50 transition-colors ${
-                  activeThread === t.id ? 'bg-ink-panel' : 'hover:bg-ink-panel/50'
+                  resolvedActiveThread === t.id ? 'bg-ink-panel' : 'hover:bg-ink-panel/50'
                 }`}
               >
                 <div className="flex items-center justify-between mb-1">
-                  <span className={`text-sm font-sans font-medium ${activeThread === t.id ? 'text-ink-light' : 'text-ink-text'}`}>
+                  <span className={`text-sm font-sans font-medium ${resolvedActiveThread === t.id ? 'text-ink-light' : 'text-ink-text'}`}>
                     {t.label}
                   </span>
                   {t.unread > 0 && (
@@ -512,8 +557,16 @@ export default function Collaboration() {
               type="text"
               placeholder="Type a message..."
               value={inputText}
-              onChange={e => setInputText(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) handleSend(); else broadcastTyping() }}
+              onChange={e => {
+                setInputText(e.target.value)
+                broadcastTyping()
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault()
+                  void handleSend()
+                }
+              }}
               className="flex-1 bg-transparent text-sm font-sans text-ink-light placeholder:text-ink-muted outline-none"
             />
             <button

@@ -1,0 +1,403 @@
+{
+  "builtTestProducts" : [
+
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.InklineMac-arm64-apple-macosx-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/sources",
+      "importPath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/App/InklineMacApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Models/EditorialModels.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Stores/WorkspaceStore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Support/SampleData.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/DetailContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/InklineSettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/OutlineColumnView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/ProjectSidebarView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/WorkspaceRootView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/sources"
+        }
+      ],
+      "isLibrary" : false,
+      "moduleName" : "InklineMac",
+      "moduleOutputPath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/Modules/InklineMac.swiftmodule",
+      "objects" : [
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView.swift.o",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j10",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-Xfrontend",
+        "-entry-point-function-name",
+        "-Xfrontend",
+        "InklineMac_main",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "inklinemac"
+      ],
+      "outputFileMapPath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/Modules/InklineMac.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/App/InklineMacApp.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Models/EditorialModels.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Stores/WorkspaceStore.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Support/SampleData.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/DetailContentView.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/InklineSettingsView.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/OutlineColumnView.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/ProjectSidebarView.swift",
+        "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/WorkspaceRootView.swift"
+      ],
+      "tempsPath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "InklineMac" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "InklineMac",
+      "-package-name",
+      "inklinemac",
+      "-c",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/App/InklineMacApp.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Models/EditorialModels.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Stores/WorkspaceStore.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Support/SampleData.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/DetailContentView.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/InklineSettingsView.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/OutlineColumnView.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/ProjectSidebarView.swift",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/WorkspaceRootView.swift",
+      "-I",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j10",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-Xfrontend",
+      "-entry-point-function-name",
+      "-Xfrontend",
+      "InklineMac_main",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.4.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "inklinemac",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "InklineMac" : [
+
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac-entitlement.plist" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<entitlement-plist>"
+        },
+        {
+          "kind" : "virtual",
+          "name" : "<com.apple.security.get-task-allow>"
+        }
+      ],
+      "outputFilePath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac-entitlement.plist"
+    },
+    "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/App/InklineMacApp.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Models/EditorialModels.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Stores/WorkspaceStore.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Support/SampleData.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/DetailContentView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/InklineSettingsView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/OutlineColumnView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/ProjectSidebarView.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/Sources/InklineMac/Views/WorkspaceRootView.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/sources"
+    },
+    "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/DetailContentView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/EditorialModels.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineMacApp.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/InklineSettingsView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/OutlineColumnView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/ProjectSidebarView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/SampleData.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceRootView.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.build/WorkspaceStore.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/InklineMac.product/Objects.LinkFileList"
+    },
+    "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/henryduvet/Documents/Apps/inkline-app-master/native/InklineMac/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

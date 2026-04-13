@@ -137,35 +137,3 @@ export default function LetteringOverlay({ bubbles, onChange, scale, font, conta
     </>
   )
 }
-
-/* ─── Helper: generate initial bubbles from panel content blocks ─── */
-
-export function generateBubblesFromContent(
-  pages: { id: string; number: number; panels: { id: string; number: number; content: ContentBlock[] }[] }[],
-  layoutWidth: number,
-  layoutHeight: number,
-): BubbleData[] {
-  const bubbles: BubbleData[] = []
-  let idx = 0
-
-  for (const pg of pages) {
-    for (const pan of pg.panels) {
-      const blockCount = pan.content.length
-      pan.content.forEach((block, i) => {
-        // Spread bubbles vertically across the panel area
-        const yRatio = blockCount > 1 ? 0.2 + (i / (blockCount - 1)) * 0.6 : 0.5
-        bubbles.push({
-          id: `bubble-${idx++}`,
-          panelId: pan.id,
-          type: block.type,
-          character: block.character,
-          text: block.text,
-          x: layoutWidth * 0.5,
-          y: layoutHeight * yRatio,
-        })
-      })
-    }
-  }
-
-  return bubbles
-}

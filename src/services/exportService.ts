@@ -1,7 +1,3 @@
-import { jsPDF } from 'jspdf'
-import html2canvas from 'html2canvas-pro'
-import JSZip from 'jszip'
-import { saveAs } from 'file-saver'
 import { FORMAT_SPECS } from '../lib/assemblyEngine'
 
 /* ─── Types ─── */
@@ -18,6 +14,7 @@ export interface ExportOptions {
 
 async function captureElement(el: HTMLElement, dpi: number): Promise<HTMLCanvasElement> {
   const scale = dpi / 72
+  const { default: html2canvas } = await import('html2canvas-pro')
   return html2canvas(el, {
     scale,
     useCORS: true,
@@ -48,6 +45,7 @@ export async function exportPDF(
   containerEl: HTMLElement,
   options: ExportOptions,
 ): Promise<void> {
+  const { jsPDF } = await import('jspdf')
   const spec = FORMAT_SPECS[options.format] ?? FORMAT_SPECS.webtoon
   const isScroll = options.format === 'webtoon' || options.format === 'manhwa'
 
@@ -90,7 +88,7 @@ export async function exportPDF(
       return
     }
 
-    let pdf: jsPDF | null = null
+    let pdf: InstanceType<typeof jsPDF> | null = null
     for (let i = 0; i < pageEls.length; i++) {
       const pageCanvas = await captureElement(pageEls[i] as HTMLElement, options.dpi)
       const fc = options.format === 'manga' ? applyGrayscale(pageCanvas) : pageCanvas
@@ -146,6 +144,10 @@ export async function exportZIP(
   containerEl: HTMLElement,
   options: ExportOptions,
 ): Promise<void> {
+  const [{ default: JSZip }, { saveAs }] = await Promise.all([
+    import('jszip'),
+    import('file-saver'),
+  ])
   const pngs = await exportPNGSequence(containerEl, options)
   const zip = new JSZip()
   const folder = zip.folder(`${options.title} - ${options.episodeTitle}`)
@@ -164,6 +166,7 @@ export async function exportSinglePNG(
   containerEl: HTMLElement,
   options: ExportOptions,
 ): Promise<void> {
+  const { saveAs } = await import('file-saver')
   const canvas = await captureElement(containerEl, options.dpi)
   const fc = options.format === 'manga' ? applyGrayscale(canvas) : canvas
   fc.toBlob(blob => {

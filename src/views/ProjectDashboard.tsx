@@ -1,8 +1,12 @@
 import { useState, useEffect } from 'react'
 import { PenLine, Plus, BookOpen, Layers } from '../icons'
 import { useAuth } from '../context/AuthContext'
+import { usePreferences } from '../context/PreferencesContext'
 import { listProjects, createProject } from '../services/projectService'
+import { formatShortDate } from '../domain/time'
 import type { ProjectFormat } from '../lib/database.types'
+import SettingsPanel from '../components/SettingsPanel'
+import ProfileAvatar from '../components/ProfileAvatar'
 
 const FORMAT_LABELS: Record<ProjectFormat, string> = {
   webtoon: 'Webtoon',
@@ -25,18 +29,19 @@ interface Props {
 }
 
 export default function ProjectDashboard({ onOpenProject }: Props) {
-  const { profile, signOut } = useAuth()
+  const { profile } = useAuth()
+  const { preferences } = usePreferences()
   const [projects, setProjects] = useState<ProjectRow[]>([])
   const [loading, setLoading] = useState(true)
   const [showNew, setShowNew] = useState(false)
   const [newTitle, setNewTitle] = useState('')
   const [newFormat, setNewFormat] = useState<ProjectFormat>('webtoon')
   const [creating, setCreating] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   useEffect(() => {
     if (!profile) return
     let cancelled = false
-    setLoading(true)
     listProjects(profile.id).then(data => {
       if (cancelled) return
       setProjects(data as ProjectRow[])
@@ -69,21 +74,32 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
           <span className="font-serif text-xl text-ink-light tracking-wide">Inkline</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="text-xs text-ink-text font-sans">{profile?.name}</span>
-          <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans border border-ink-border rounded px-1.5 py-0.5">
-            {profile?.role}
-          </span>
+          {profile && (
+            <button
+              aria-label="Open profile and settings"
+              onClick={() => setSettingsOpen(true)}
+              className="flex items-center gap-3 rounded-full border border-ink-border bg-ink-panel px-2 py-1.5 text-left transition-colors hover:border-ink-gold/30"
+            >
+              <ProfileAvatar profile={profile} size="sm" />
+              <div className="min-w-0">
+                <div className="text-xs text-ink-light font-sans truncate">{profile.name}</div>
+                <div className="text-[10px] uppercase tracking-wider text-ink-muted font-sans truncate">
+                  {profile.role}
+                </div>
+              </div>
+            </button>
+          )}
           <button
-            onClick={signOut}
+            onClick={() => setShowNew(true)}
             className="text-xs text-ink-muted font-sans hover:text-ink-text transition-colors"
           >
-            Sign out
+            New Project
           </button>
         </div>
       </header>
 
       {/* Main */}
-      <main className="flex-1 px-8 py-10 max-w-4xl mx-auto w-full">
+      <main className={`flex-1 px-8 ${preferences.compactDashboard ? 'py-8 max-w-5xl' : 'py-10 max-w-4xl'} mx-auto w-full`}>
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="font-serif text-2xl text-ink-light">Your Projects</h1>
@@ -115,7 +131,7 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
             </div>
             <div>
               <label className="block text-[11px] uppercase tracking-wider text-ink-muted font-sans mb-2">Format</label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 {FORMATS.map(f => (
                   <button
                     key={f}
@@ -151,7 +167,7 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
 
         {/* Project grid */}
         {loading ? (
-          <div className="grid grid-cols-3 gap-4">
+          <div className={`grid ${preferences.compactDashboard ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'}`}>
             {[1, 2, 3].map(i => (
               <div key={i} className="h-36 rounded-xl bg-ink-dark border border-ink-border animate-pulse" />
             ))}
@@ -165,12 +181,14 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
             <p className="text-xs text-ink-muted font-sans">Create one to get started.</p>
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-4">
+          <div className={`grid ${preferences.compactDashboard ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'}`}>
             {projects.map(proj => (
               <button
                 key={proj.id}
                 onClick={() => onOpenProject(proj.id)}
-                className="text-left bg-ink-dark border border-ink-border hover:border-ink-gold/40 rounded-xl p-5 transition-all group hover:bg-ink-panel"
+                className={`text-left bg-ink-dark border border-ink-border hover:border-ink-gold/40 rounded-xl transition-all group hover:bg-ink-panel ${
+                  preferences.compactDashboard ? 'p-4' : 'p-5'
+                }`}
               >
                 <div className="flex items-start justify-between mb-3">
                   <div className="w-9 h-9 rounded-lg bg-ink-gold/10 border border-ink-gold/20 flex items-center justify-center group-hover:bg-ink-gold/20 transition-colors">
@@ -184,13 +202,15 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
                   {proj.title}
                 </h3>
                 <p className="text-[11px] text-ink-muted font-sans">
-                  {new Date(proj.created_at).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}
+                  {formatShortDate(proj.created_at)}
                 </p>
               </button>
             ))}
           </div>
         )}
       </main>
+
+      {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
     </div>
   )
 }

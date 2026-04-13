@@ -55,3 +55,4 @@ export const X = (p: IconProps) => <I2 {...p} paths={["M18 6 6 18", "m6 6 12 12"
 export const Pencil = (p: IconProps) => <I2 {...p} paths={["M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z", "m15 5 4 4"]} />
 export const GripVertical = (p: IconProps) => <I2 {...p} paths={["M9 5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M9 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M9 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M15 5a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M15 12a1 1 0 1 0 0-2 1 1 0 0 0 0 2z", "M15 19a1 1 0 1 0 0-2 1 1 0 0 0 0 2z"]} />
 export const Upload = (p: IconProps) => <I2 {...p} paths={["M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4", "m17 8-5-5-5 5", "M12 3v12"]} />
+export const Search = (p: IconProps) => <I2 {...p} paths={["m21 21-4.35-4.35", "a7 7 0 1 1-9.9-9.9 7 7 0 0 1 9.9 9.9z"]} />
