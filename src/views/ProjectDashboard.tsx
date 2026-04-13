@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { PenLine, Plus, BookOpen, Layers } from '../icons'
+import { PenLine, Plus, BookOpen, Layers, Shield, Users } from '../icons'
 import { useAuth } from '../context/AuthContext'
 import { usePreferences } from '../context/PreferencesContext'
-import { listProjects, createProject } from '../services/projectService'
+import { listProjects, createProject, listAllProjects, listAllUsers, updateUserRole } from '../services/projectService'
 import { formatShortDate } from '../domain/time'
-import type { ProjectFormat } from '../lib/database.types'
+import type { ProjectFormat, UserRole } from '../lib/database.types'
 import SettingsPanel from '../components/SettingsPanel'
 import ProfileAvatar from '../components/ProfileAvatar'
 import OnboardingFlow, { hasCompletedOnboarding } from '../components/OnboardingFlow'
@@ -29,6 +29,30 @@ interface Props {
   onOpenProject: (projectId: string) => void
 }
 
+interface AdminUser {
+  id: string
+  email: string
+  name: string
+  role: UserRole
+  avatar_url: string | null
+  created_at: string
+}
+
+interface AdminProject {
+  id: string
+  title: string
+  format: ProjectFormat
+  created_at: string
+  owner: { id: string; name: string; email: string } | { id: string; name: string; email: string }[] | null
+}
+
+const ASSIGNABLE_ROLES: { id: UserRole; label: string }[] = [
+  { id: 'writer', label: 'Writer' },
+  { id: 'artist', label: 'Artist' },
+  { id: 'colorist', label: 'Colorist' },
+  { id: 'letterer', label: 'Letterer' },
+]
+
 export default function ProjectDashboard({ onOpenProject }: Props) {
   const { profile } = useAuth()
   const { preferences } = usePreferences()
@@ -41,6 +65,13 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [showOnboarding, setShowOnboarding] = useState(false)
 
+  // Admin state
+  const isAdmin = profile?.role === 'admin'
+  const [adminTab, setAdminTab] = useState<'projects' | 'users'>('projects')
+  const [allProjects, setAllProjects] = useState<AdminProject[]>([])
+  const [allUsers, setAllUsers] = useState<AdminUser[]>([])
+  const [adminLoading, setAdminLoading] = useState(isAdmin)
+
   useEffect(() => {
     if (!profile) return
     let cancelled = false
@@ -52,8 +83,24 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
         setShowOnboarding(true)
       }
     })
+    // Admin: fetch all projects and users
+    if (profile.role === 'admin') {
+      Promise.all([listAllProjects(), listAllUsers()]).then(([projs, users]) => {
+        if (cancelled) return
+        setAllProjects(projs as AdminProject[])
+        setAllUsers(users as AdminUser[])
+        setAdminLoading(false)
+      })
+    }
     return () => { cancelled = true }
   }, [profile])
+
+  const handleRoleChange = async (userId: string, newRole: UserRole) => {
+    const err = await updateUserRole(userId, newRole)
+    if (!err) {
+      setAllUsers(prev => prev.map(u => u.id === userId ? { ...u, role: newRole } : u))
+    }
+  }
 
   const handleCreate = async () => {
     if (!newTitle.trim() || !profile) return
@@ -174,7 +221,7 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
         {loading ? (
           <div className={`grid ${preferences.compactDashboard ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'}`}>
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-36 rounded-xl bg-ink-dark border border-ink-border animate-pulse" />
+              <div key={i} className="h-36 rounded-xl bg-ink-dark border border-ink-border ink-shimmer" />
             ))}
           </div>
         ) : projects.length === 0 ? (
@@ -220,6 +267,103 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
           </div>
         )}
       </main>
+
+      {/* Admin Panel */}
+      {isAdmin && (
+        <section className="px-8 pb-10 max-w-4xl mx-auto w-full">
+          <div className="border-t border-ink-border pt-8 mt-4">
+            <div className="flex items-center gap-2 mb-6">
+              <Shield size={16} className="text-ink-gold" />
+              <h2 className="font-serif text-xl text-ink-light">Admin Panel</h2>
+              <span className="text-[10px] uppercase tracking-wider text-ink-gold font-sans bg-ink-gold/10 border border-ink-gold/20 rounded px-1.5 py-0.5 ml-2">
+                Admin
+              </span>
+            </div>
+
+            {/* Admin tabs */}
+            <div className="flex gap-1 mb-6">
+              <button
+                onClick={() => setAdminTab('projects')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans transition-colors ${
+                  adminTab === 'projects' ? 'bg-ink-gold/10 text-ink-gold border border-ink-gold/30' : 'text-ink-muted hover:text-ink-text border border-transparent'
+                }`}
+              >
+                <Layers size={12} /> All Projects
+              </button>
+              <button
+                onClick={() => setAdminTab('users')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-sans transition-colors ${
+                  adminTab === 'users' ? 'bg-ink-gold/10 text-ink-gold border border-ink-gold/30' : 'text-ink-muted hover:text-ink-text border border-transparent'
+                }`}
+              >
+                <Users size={12} /> All Users
+              </button>
+            </div>
+
+            {adminLoading ? (
+              <div className="space-y-3">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="h-14 rounded-lg bg-ink-dark border border-ink-border ink-shimmer" />
+                ))}
+              </div>
+            ) : adminTab === 'projects' ? (
+              <div className="space-y-2">
+                {allProjects.map(proj => {
+                  const owner = Array.isArray(proj.owner) ? proj.owner[0] : proj.owner
+                  return (
+                    <button
+                      key={proj.id}
+                      onClick={() => onOpenProject(proj.id)}
+                      className="w-full flex items-center justify-between bg-ink-dark border border-ink-border hover:border-ink-gold/30 rounded-lg px-4 py-3 text-left transition-colors group"
+                    >
+                      <div className="min-w-0">
+                        <div className="text-sm text-ink-light font-sans group-hover:text-ink-gold transition-colors truncate">{proj.title}</div>
+                        <div className="text-[10px] text-ink-muted font-sans mt-0.5">
+                          {owner?.name ?? 'Unknown'} &middot; {FORMAT_LABELS[proj.format]} &middot; {formatShortDate(proj.created_at)}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+                {allProjects.length === 0 && (
+                  <p className="text-xs text-ink-muted font-sans py-4 text-center">No projects found.</p>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {allUsers.map(user => (
+                  <div key={user.id} className="flex items-center justify-between bg-ink-dark border border-ink-border rounded-lg px-4 py-3">
+                    <div className="min-w-0">
+                      <div className="text-sm text-ink-light font-sans truncate">{user.name}</div>
+                      <div className="text-[10px] text-ink-muted font-sans mt-0.5">{user.email}</div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {user.role === 'admin' ? (
+                        <span className="text-[10px] uppercase tracking-wider text-ink-gold font-sans bg-ink-gold/10 border border-ink-gold/20 rounded px-1.5 py-0.5">
+                          Admin
+                        </span>
+                      ) : (
+                        <select
+                          value={user.role}
+                          onChange={e => handleRoleChange(user.id, e.target.value as UserRole)}
+                          className="bg-ink-panel border border-ink-border rounded px-2 py-1 text-xs font-sans text-ink-light outline-none focus:border-ink-gold/60 transition-colors"
+                        >
+                          {ASSIGNABLE_ROLES.map(r => (
+                            <option key={r.id} value={r.id}>{r.label}</option>
+                          ))}
+                        </select>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {allUsers.length === 0 && (
+                  <p className="text-xs text-ink-muted font-sans py-4 text-center">No users found.</p>
+                )}
+              </div>
+            )}
+          </div>
+        </section>
+      )}
 
       {settingsOpen && <SettingsPanel onClose={() => setSettingsOpen(false)} />}
       {showOnboarding && <OnboardingFlow onComplete={() => setShowOnboarding(false)} />}

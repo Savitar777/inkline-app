@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import { useVirtualizer } from '@tanstack/react-virtual'
 import {
   BookOpen,
   FileText,
@@ -21,7 +22,7 @@ import { useProject } from '../context/ProjectContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useBreakpoint } from '../hooks/useBreakpoint'
 import { getEpisodeStats } from '../domain/selectors'
-import type { Character } from '../types'
+import type { Character, Page, Panel, ContentBlock } from '../types'
 
 /* ─── Add Character Form ─── */
 
@@ -169,6 +170,75 @@ function CharacterCard({ char }: { char: Character }) {
         }}
         onCancel={() => setConfirmDel(false)}
       />
+    </div>
+  )
+}
+
+/* ─── Virtualized Page List ─── */
+
+interface VirtualizedPageListProps {
+  pages: Page[]
+  episodeId: string
+  onUpdatePage: (pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => void
+  onDeletePage: (pageId: string) => void
+  onAddPanel: (pageId: string, shot: string) => void
+  onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
+  onDeletePanel: (pageId: string, panelId: string) => void
+  onAddBlock: (pageId: string, panelId: string, type: ContentBlock['type']) => void
+  onUpdateBlock: (pageId: string, panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
+  onDeleteBlock: (pageId: string, panelId: string, blockId: string) => void
+  onAddPage: () => void
+}
+
+function VirtualizedPageList({
+  pages, episodeId, onUpdatePage, onDeletePage, onAddPanel, onUpdatePanel,
+  onDeletePanel, onAddBlock, onUpdateBlock, onDeleteBlock, onAddPage,
+}: VirtualizedPageListProps) {
+  const parentRef = useRef<HTMLDivElement>(null)
+
+  const virtualizer = useVirtualizer({
+    count: pages.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: useCallback(() => 300, []),
+    overscan: 3,
+  })
+
+  return (
+    <div ref={parentRef} className="max-w-3xl" style={{ overflow: 'auto', maxHeight: '100%' }}>
+      <div role="tree" aria-label="Script pages" style={{ height: `${virtualizer.getTotalSize()}px`, width: '100%', position: 'relative' }}>
+        {virtualizer.getVirtualItems().map(virtualRow => {
+          const page = pages[virtualRow.index]
+          return (
+            <div
+              key={page.id}
+              data-index={virtualRow.index}
+              ref={virtualizer.measureElement}
+              style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${virtualRow.start}px)` }}
+              className="pb-4"
+            >
+              <PageBlock
+                page={page}
+                episodeId={episodeId}
+                onUpdatePage={onUpdatePage}
+                onDeletePage={onDeletePage}
+                onAddPanel={onAddPanel}
+                onUpdatePanel={onUpdatePanel}
+                onDeletePanel={onDeletePanel}
+                onAddBlock={onAddBlock}
+                onUpdateBlock={onUpdateBlock}
+                onDeleteBlock={onDeleteBlock}
+              />
+            </div>
+          )
+        })}
+      </div>
+      <button
+        aria-label="Add page"
+        onClick={onAddPage}
+        className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-sans text-ink-text border border-dashed border-ink-border hover:border-ink-gold/30 hover:text-ink-gold transition-colors mt-4"
+      >
+        <Plus size={12} /> Add Page
+      </button>
     </div>
   )
 }
@@ -482,30 +552,19 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
                   </button>
                 </div>
               ) : (
-                <div role="tree" aria-label="Script pages" className="space-y-4 max-w-3xl">
-                  {episode.pages.map(page => (
-                    <PageBlock
-                      key={page.id}
-                      page={page}
-                      episodeId={episode.id}
-                      onUpdatePage={(pageId, updates) => updatePage(episode.id, pageId, updates)}
-                      onDeletePage={pageId => deletePage(episode.id, pageId)}
-                      onAddPanel={(pageId, shot) => addPanel(episode.id, pageId, shot)}
-                      onUpdatePanel={(pageId, panelId, updates) => updatePanel(episode.id, pageId, panelId, updates)}
-                      onDeletePanel={(pageId, panelId) => deletePanel(episode.id, pageId, panelId)}
-                      onAddBlock={(pageId, panelId, type) => addContentBlock(episode.id, pageId, panelId, type)}
-                      onUpdateBlock={(pageId, panelId, blockId, updates) => updateContentBlock(episode.id, pageId, panelId, blockId, updates)}
-                      onDeleteBlock={(pageId, panelId, blockId) => deleteContentBlock(episode.id, pageId, panelId, blockId)}
-                    />
-                  ))}
-                  <button
-                    aria-label="Add page"
-                    onClick={() => addPage(episode.id)}
-                    className="flex items-center gap-2 px-3 py-2 rounded-md text-xs font-sans text-ink-text border border-dashed border-ink-border hover:border-ink-gold/30 hover:text-ink-gold transition-colors mt-4"
-                  >
-                    <Plus size={12} /> Add Page
-                  </button>
-                </div>
+                <VirtualizedPageList
+                  pages={episode.pages}
+                  episodeId={episode.id}
+                  onUpdatePage={(pageId, updates) => updatePage(episode.id, pageId, updates)}
+                  onDeletePage={pageId => deletePage(episode.id, pageId)}
+                  onAddPanel={(pageId, shot) => addPanel(episode.id, pageId, shot)}
+                  onUpdatePanel={(pageId, panelId, updates) => updatePanel(episode.id, pageId, panelId, updates)}
+                  onDeletePanel={(pageId, panelId) => deletePanel(episode.id, pageId, panelId)}
+                  onAddBlock={(pageId, panelId, type) => addContentBlock(episode.id, pageId, panelId, type)}
+                  onUpdateBlock={(pageId, panelId, blockId, updates) => updateContentBlock(episode.id, pageId, panelId, blockId, updates)}
+                  onDeleteBlock={(pageId, panelId, blockId) => deleteContentBlock(episode.id, pageId, panelId, blockId)}
+                  onAddPage={() => addPage(episode.id)}
+                />
               )}
             </div>
           </>

@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase'
 import { formatShortTime } from '../domain/time'
-import type { Database } from '../lib/database.types'
+import type { Database, UserRole } from '../lib/database.types'
 import type { Project, Episode, ContentBlock, Character, Thread, Message } from '../types'
 
 /* ─── Helpers ─── */
@@ -94,7 +94,7 @@ export function setServiceErrorCallback(cb: ErrorCallback | null): void {
 }
 
 function handleError(context: string, error: unknown): void {
-  console.error(`[projectService] ${context}:`, error)
+  if (import.meta.env.DEV) console.error(`[projectService] ${context}:`, error)
   _onErrorCallback?.(context, error)
 }
 
@@ -548,12 +548,18 @@ export async function fetchCollaborators(projectId: string): Promise<Collaborato
 
 /* ─── File Upload (Supabase Storage) ─── */
 
+const MAX_UPLOAD_SIZE = 10 * 1024 * 1024 // 10 MB
+
 export async function uploadPanelArtwork(
   projectId: string,
   panelId: string,
   file: File,
   userId: string,
 ): Promise<{ url: string; assetId: string } | null> {
+  if (file.size > MAX_UPLOAD_SIZE) {
+    handleError('uploadPanelArtwork', new Error('File exceeds 10 MB limit.'))
+    return null
+  }
   const ext = file.name.split('.').pop() ?? 'png'
   const path = `${projectId}/${panelId}/${Date.now()}.${ext}`
 
@@ -588,6 +594,35 @@ export async function uploadPanelArtwork(
   await supabase.from('panels').update({ asset_url: url, status: 'draft_received' }).eq('id', panelId)
 
   return { url, assetId: asset.id }
+}
+
+/* ─── Admin Functions ─── */
+
+export async function listAllProjects() {
+  const { data, error } = await supabase
+    .from('projects')
+    .select('id, title, format, created_at, owner:users!projects_owner_id_fkey(id, name, email)')
+    .order('created_at', { ascending: false })
+  if (error) { handleError('listAllProjects', error); return [] }
+  return data ?? []
+}
+
+export async function listAllUsers() {
+  const { data, error } = await supabase
+    .from('users')
+    .select('id, email, name, role, avatar_url, created_at')
+    .order('created_at', { ascending: false })
+  if (error) { handleError('listAllUsers', error); return [] }
+  return data ?? []
+}
+
+export async function updateUserRole(userId: string, role: UserRole): Promise<string | null> {
+  const { error } = await supabase
+    .from('users')
+    .update({ role })
+    .eq('id', userId)
+  if (error) { handleError('updateUserRole', error); return error.message }
+  return null
 }
 
 export async function fetchPanelAssets(panelId: string) {

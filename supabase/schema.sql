@@ -13,7 +13,7 @@ create extension if not exists "pgcrypto";
 -- 1. ENUM TYPES
 -- ═══════════════════════════════════════════════════════════════
 
-create type user_role as enum ('writer', 'artist', 'letterer', 'colorist');
+create type user_role as enum ('writer', 'artist', 'letterer', 'colorist', 'admin');
 create type project_format as enum ('webtoon', 'manhwa', 'manga', 'comic');
 create type content_block_type as enum ('dialogue', 'caption', 'sfx');
 create type thread_status as enum ('submitted', 'in_progress', 'draft_received', 'approved');
@@ -170,6 +170,12 @@ alter table panel_assets    enable row level security;
 -- 5. HELPER FUNCTIONS (used by policies below)
 -- ═══════════════════════════════════════════════════════════════
 
+-- Admin check — returns true if the current user has the 'admin' role
+create or replace function is_admin()
+returns boolean language sql security definer stable set search_path = '' as $$
+  select exists (select 1 from public.users where id = auth.uid() and role = 'admin');
+$$;
+
 -- Reusable project-membership check for RLS policies
 create or replace function is_project_member(_project_id uuid)
 returns boolean language sql security definer stable set search_path = '' as $$
@@ -203,7 +209,7 @@ $$;
 -- ── users ──
 create policy "users_select_own"
   on users for select
-  using ( (select auth.uid()) = id );
+  using ( (select auth.uid()) = id or is_admin() );
 
 create policy "users_select_teammates"
   on users for select
@@ -223,8 +229,8 @@ create policy "users_select_teammates"
 
 create policy "users_update_own"
   on users for update
-  using ( (select auth.uid()) = id )
-  with check ( (select auth.uid()) = id );
+  using ( (select auth.uid()) = id or is_admin() )
+  with check ( (select auth.uid()) = id or is_admin() );
 
 -- Deny direct INSERT on users — only handle_new_user trigger creates rows
 create policy "users_insert_deny"
@@ -240,6 +246,7 @@ create policy "projects_select"
       select 1 from project_members
       where project_id = projects.id and user_id = (select auth.uid())
     )
+    or is_admin()
   );
 
 create policy "projects_insert"
@@ -248,11 +255,11 @@ create policy "projects_insert"
 
 create policy "projects_update"
   on projects for update to authenticated
-  using ( owner_id = (select auth.uid()) );
+  using ( owner_id = (select auth.uid()) or is_admin() );
 
 create policy "projects_delete"
   on projects for delete to authenticated
-  using ( owner_id = (select auth.uid()) );
+  using ( owner_id = (select auth.uid()) or is_admin() );
 
 -- ── project_members ──
 create policy "pm_select"
@@ -260,12 +267,14 @@ create policy "pm_select"
   using (
     user_id = (select auth.uid())
     or exists (select 1 from projects where id = project_members.project_id and owner_id = (select auth.uid()))
+    or is_admin()
   );
 
 create policy "pm_insert"
   on project_members for insert to authenticated
   with check (
     exists (select 1 from projects where id = project_members.project_id and owner_id = (select auth.uid()))
+    or is_admin()
   );
 
 create policy "pm_update"
@@ -279,6 +288,7 @@ create policy "pm_delete"
   using (
     user_id = (select auth.uid())
     or exists (select 1 from projects where id = project_members.project_id and owner_id = (select auth.uid()))
+    or is_admin()
   );
 
 -- ── episodes ──
@@ -288,15 +298,15 @@ create policy "episodes_select"
 
 create policy "episodes_insert"
   on episodes for insert to authenticated
-  with check ( is_project_member(project_id) and get_member_role(project_id) = 'writer' );
+  with check ( (is_project_member(project_id) and get_member_role(project_id) = 'writer') or is_admin() );
 
 create policy "episodes_update"
   on episodes for update to authenticated
-  using ( is_project_member(project_id) and get_member_role(project_id) = 'writer' );
+  using ( (is_project_member(project_id) and get_member_role(project_id) = 'writer') or is_admin() );
 
 create policy "episodes_delete"
   on episodes for delete to authenticated
-  using ( is_project_member(project_id) and get_member_role(project_id) = 'writer' );
+  using ( (is_project_member(project_id) and get_member_role(project_id) = 'writer') or is_admin() );
 
 -- ── pages ──
 create policy "pages_select"
@@ -536,8 +546,11 @@ create trigger on_auth_user_created
 create or replace function prevent_role_change()
 returns trigger language plpgsql as $$
 begin
+  -- Admins can change any user's role; non-admins cannot change their own
   if new.role is distinct from old.role then
-    raise exception 'Cannot change your own role';
+    if not exists (select 1 from users where id = auth.uid() and role = 'admin') then
+      raise exception 'Cannot change your own role';
+    end if;
   end if;
   return new;
 end;

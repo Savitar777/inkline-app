@@ -1,68 +1,34 @@
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import {
-  Download,
   Check,
-  AlertCircle,
-  Layers,
-  Monitor,
-  Smartphone,
-  BookOpen,
-  ScrollText,
-  Image,
-  FileDown,
-  ChevronDown,
-  X,
   FileText,
 } from '../icons'
 import AssemblyPreview from '../components/AssemblyPreview'
 import LetteringOverlay, { type BubbleData, type BubbleFont } from '../components/LetteringOverlay'
+import FormatPicker, { formats } from '../components/compile/FormatPicker'
+import PanelGrid, { type PanelThumb } from '../components/compile/PanelGrid'
+import ExportOptions from '../components/compile/ExportOptions'
 import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { generateBubblesFromContent } from '../domain/lettering'
 import { useNotifications } from '../context/NotificationContext'
 import { sendMessage } from '../services/projectService'
-import type { ExportOptions } from '../services/exportService'
+import type { ExportOptions as ExportOpts } from '../services/exportService'
 import { getFormatSpec } from '../lib/assemblyEngine'
 import { getEpisodeById, getReviewablePanels } from '../domain/selectors'
 import { useToast } from '../context/ToastContext'
 import type { PanelStatus } from '../types'
 
-/* ─── Types ─── */
-
-type Format = 'webtoon' | 'manhwa' | 'manga' | 'comic'
-
-interface PanelThumb {
-  id: string
-  page: number
-  panel: number
-  status: 'complete' | 'missing' | 'review'
-  label: string
-  pageId: string
-}
-
-/* ─── Static Data ─── */
-
-const formats: { id: Format; label: string; desc: string; icon: React.ReactNode; specs: string }[] = [
-  { id: 'webtoon', label: 'Webtoon', desc: 'Vertical scroll, single column', icon: <Smartphone size={18} />, specs: '800px wide · Infinite scroll · RGB' },
-  { id: 'manhwa', label: 'Manhwa', desc: 'Korean format, vertical scroll', icon: <ScrollText size={18} />, specs: '720px wide · Vertical · RGB' },
-  { id: 'manga', label: 'Manga', desc: 'Right-to-left, page-based', icon: <BookOpen size={18} />, specs: 'B5 (182×257mm) · RTL · Grayscale' },
-  { id: 'comic', label: 'Comic', desc: 'Western format, page grid', icon: <Monitor size={18} />, specs: '6.625×10.25" · LTR · CMYK' },
-]
-
-const exportFormats = [
-  { id: 'pdf', label: 'PDF (All Pages)', icon: <FileDown size={13} /> },
-  { id: 'png', label: 'PNG (Single Image)', icon: <Image size={13} /> },
-  { id: 'zip', label: 'ZIP (PNG Sequence)', icon: <Download size={13} /> },
-]
-
-/* ─── Component ─── */
+/* ─── Helpers ─── */
 
 function panelThumbStatus(status: PanelStatus | undefined): PanelThumb['status'] {
   if (status === 'approved') return 'complete'
   if (status === 'draft_received' || status === 'changes_requested') return 'review'
   return 'missing'
 }
+
+/* ─── Component ─── */
 
 export default function CompileExport() {
   const { project, activeEpisodeId, updatePanel, updateThread } = useProject()
@@ -72,7 +38,6 @@ export default function CompileExport() {
   const { addNotification } = useNotifications()
   const isLetterer = profile?.role === 'letterer'
   const isColorist = profile?.role === 'colorist'
-  const [exportOpen, setExportOpen] = useState(false)
   const [changesNote, setChangesNote] = useState<Record<string, string>>({})
   const [showChangesFor, setShowChangesFor] = useState<string | null>(null)
   const [showLettering, setShowLettering] = useState(isLetterer)
@@ -82,29 +47,14 @@ export default function CompileExport() {
   const [exporting, setExporting] = useState(false)
   const [previewScale, setPreviewScale] = useState(0.5)
   const previewRef = useRef<HTMLDivElement>(null)
-  const exportDropdownRef = useRef<HTMLDivElement>(null)
 
   const episode = getEpisodeById(project, activeEpisodeId)
-
-  // Close export dropdown on outside click
-  useEffect(() => {
-    if (!exportOpen) return
-    const handleClickOutside = (e: MouseEvent) => {
-      if (exportDropdownRef.current && !exportDropdownRef.current.contains(e.target as Node)) {
-        setExportOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [exportOpen])
-
   const spec = useMemo(() => getFormatSpec(selectedFormat), [selectedFormat])
 
   const handleExport = useCallback(async (type: string) => {
-    setExportOpen(false)
     if (!previewRef.current || !episode) return
     setExporting(true)
-    const opts: ExportOptions = {
+    const opts: ExportOpts = {
       format: selectedFormat,
       dpi,
       colorProfile: spec.colorProfile,
@@ -118,8 +68,8 @@ export default function CompileExport() {
       else if (type === 'zip') await exportZIP(previewRef.current, opts)
       showToast('Export complete!', 'success')
     } catch (e) {
-      console.error('Export failed:', e)
-      showToast('Export failed. Check console for details.', 'error')
+      if (import.meta.env.DEV) console.error('Export failed:', e)
+      showToast('Export failed. Please try again.', 'error')
     }
     setExporting(false)
   }, [selectedFormat, dpi, spec, project.title, episode, showToast])
@@ -158,8 +108,6 @@ export default function CompileExport() {
   const reviewCount = panels.filter((p) => p.status === 'review').length
   const totalCount = panels.length
   const percentage = totalCount > 0 ? Math.round((completeCount / totalCount) * 100) : 0
-
-  // Check if all panels have been submitted (none are in 'draft' / 'missing')
   const allSubmitted = totalCount > 0 && panels.every(p => p.status !== 'missing')
   const allApproved = totalCount > 0 && completeCount === totalCount
 
@@ -167,11 +115,9 @@ export default function CompileExport() {
     if (!episode) return
     const epThread = project.threads.find(t => t.episodeId === episode.id)
     if (!epThread) return
-
     const everyPanelApproved = episode.pages
       .flatMap(pg => pg.panels)
       .every(panel => approvedPanelIds.has(panel.id) || panel.status === 'approved')
-
     if (everyPanelApproved) {
       updateThread(epThread.id, { status: 'approved' })
     }
@@ -192,8 +138,6 @@ export default function CompileExport() {
   const requestChanges = useCallback(async (panelId: string, pageId: string) => {
     if (!episode) return
     updatePanel(episode.id, pageId, panelId, { status: 'changes_requested' as PanelStatus })
-
-    // Send the changes note as a message in the episode's thread
     const note = changesNote[panelId]?.trim()
     const epThread = project.threads.find(t => t.episodeId === episode.id)
     if (note && user && epThread) {
@@ -201,7 +145,6 @@ export default function CompileExport() {
       const label = pan ? `P${pan.page}/Panel ${pan.panel}` : 'a panel'
       await sendMessage(epThread.id, user.id, `Changes requested for ${label}: ${note}`)
     }
-    // Thread goes back to in_progress when changes are requested
     if (epThread) {
       updateThread(epThread.id, { status: 'in_progress' })
     }
@@ -215,7 +158,6 @@ export default function CompileExport() {
     setShowChangesFor(null)
   }, [addNotification, changesNote, episode, panels, project.threads, updatePanel, updateThread, user])
 
-  // Bulk approve all reviewable panels on a given page
   const bulkApprovePage = useCallback((pageId: string) => {
     if (!episode) return
     const page = episode.pages.find(pg => pg.id === pageId)
@@ -242,6 +184,10 @@ export default function CompileExport() {
     if (next) setShowChangesFor(next.panelId)
   } : null), [episode, registerActionHandler])
 
+  const handleChangesNoteChange = useCallback((panelId: string, value: string) => {
+    setChangesNote(prev => ({ ...prev, [panelId]: value }))
+  }, [])
+
   return (
     <div className="flex h-full">
       {/* Main Content */}
@@ -264,70 +210,20 @@ export default function CompileExport() {
               </p>
             </div>
             <div className="flex items-center gap-3">
-              {/* Export dropdown */}
-              <div className="relative" ref={exportDropdownRef}>
-                <button
-                  onClick={() => setExportOpen(!exportOpen)}
-                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors"
-                >
-                  <Download size={14} />
-                  Export
-                  <ChevronDown size={12} />
-                </button>
-                {exportOpen && (
-                  <div className="absolute right-0 top-full mt-1 w-48 bg-ink-panel border border-ink-border rounded-lg shadow-xl z-10 py-1">
-                    {exportFormats.map((fmt) => (
-                      <button
-                        key={fmt.id}
-                        className="w-full text-left px-4 py-2 text-sm font-sans text-ink-text hover:text-ink-light hover:bg-ink-dark/50 transition-colors flex items-center gap-2"
-                        onClick={() => handleExport(fmt.id)}
-                        disabled={exporting}
-                      >
-                        <span className="text-ink-muted">{fmt.icon}</span>
-                        {fmt.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
+              <ExportOptions exporting={exporting} onExport={handleExport} />
             </div>
           </div>
         </div>
 
         <div className="flex-1 overflow-y-auto">
           {/* Format Selector */}
-          <div className="px-6 py-5 border-b border-ink-border">
-            <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium block mb-3">Output Format</span>
-            <div className="grid grid-cols-4 gap-3">
-              {formats.map((fmt) => (
-                <button
-                  key={fmt.id}
-                  onClick={() => setSelectedFormat(fmt.id)}
-                  className={`text-left p-4 rounded-lg border transition-all ${
-                    selectedFormat === fmt.id
-                      ? 'border-ink-gold bg-ink-gold/5'
-                      : 'border-ink-border bg-ink-panel hover:border-ink-muted'
-                  }`}
-                >
-                  <div className={`mb-2 ${selectedFormat === fmt.id ? 'text-ink-gold' : 'text-ink-muted'}`}>
-                    {fmt.icon}
-                  </div>
-                  <div className={`text-sm font-sans font-medium ${selectedFormat === fmt.id ? 'text-ink-gold' : 'text-ink-light'}`}>
-                    {fmt.label}
-                  </div>
-                  <div className="text-[11px] text-ink-text font-sans mt-0.5">{fmt.desc}</div>
-                  <div className="text-[10px] text-ink-muted font-mono mt-2">{fmt.specs}</div>
-                </button>
-              ))}
-            </div>
-          </div>
+          <FormatPicker selectedFormat={selectedFormat} onSelectFormat={setSelectedFormat} />
 
           {/* Layout Preview */}
           <div className="px-6 py-5 border-b border-ink-border">
             <div className="flex items-center justify-between mb-4">
               <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Layout Preview</span>
               <div className="flex items-center gap-3">
-                {/* Zoom */}
                 <div className="flex items-center gap-1.5">
                   <span className="text-[10px] text-ink-muted font-sans">Zoom</span>
                   <input
@@ -341,7 +237,6 @@ export default function CompileExport() {
                   />
                   <span className="text-[10px] text-ink-muted font-mono w-8">{Math.round(previewScale * 100)}%</span>
                 </div>
-                {/* DPI */}
                 <select
                   value={dpi}
                   onChange={e => setDpi(Number(e.target.value))}
@@ -351,7 +246,6 @@ export default function CompileExport() {
                   <option value={150}>150 DPI</option>
                   <option value={300}>300 DPI (Print)</option>
                 </select>
-                {/* Lettering toggle */}
                 <button
                   onClick={() => showLettering ? setShowLettering(false) : initLettering()}
                   className={`flex items-center gap-1.5 px-2.5 py-1 rounded text-[10px] font-sans border transition-colors ${
@@ -404,151 +298,23 @@ export default function CompileExport() {
             </div>
             {exporting && (
               <div className="mt-2 text-center">
-                <span className="text-xs text-ink-gold font-sans animate-pulse">Exporting…</span>
+                <span className="text-xs text-ink-gold font-sans animate-pulse">Exporting...</span>
               </div>
             )}
           </div>
 
           {/* Panel Grid */}
-          <div className="px-6 py-5">
-            <div className="flex items-center justify-between mb-4">
-              <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium">Panels</span>
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-status-approved" />
-                  <span className="text-[10px] text-ink-muted font-sans">Complete</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-status-draft" />
-                  <span className="text-[10px] text-ink-muted font-sans">In Review</span>
-                </div>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-ink-muted" />
-                  <span className="text-[10px] text-ink-muted font-sans">Missing</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Bulk approve per page */}
-            {episode && episode.pages.some(pg => pg.panels.some(pan => pan.status === 'draft_received' || pan.status === 'changes_requested')) && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {episode.pages.map(pg => {
-                  const reviewable = pg.panels.filter(pan => pan.status === 'draft_received' || pan.status === 'changes_requested')
-                  if (reviewable.length === 0) return null
-                  return (
-                    <button
-                      key={pg.id}
-                      onClick={() => bulkApprovePage(pg.id)}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-[11px] font-sans bg-status-approved/10 text-status-approved border border-status-approved/20 hover:bg-status-approved/20 transition-colors"
-                    >
-                      <Check size={10} />
-                      Approve Page {pg.number} ({reviewable.length} panel{reviewable.length !== 1 ? 's' : ''})
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-
-            <div className="grid grid-cols-4 gap-3">
-              {panels.map((p) => {
-                const ep = episode!
-                const pageId = p.pageId
-                const pan = ep.pages.find(pg => pg.id === pageId)?.panels.find(pan => pan.id === p.id)
-                return (
-                <div
-                  key={p.id}
-                  className={`rounded-lg border overflow-hidden ${
-                    p.status === 'complete'
-                      ? 'border-status-approved/30'
-                      : p.status === 'review'
-                      ? 'border-status-draft/30'
-                      : 'border-ink-border border-dashed'
-                  }`}
-                >
-                  {/* Thumbnail / asset area */}
-                  <div className={`h-32 flex items-center justify-center relative ${
-                    p.status === 'missing' ? 'bg-ink-panel' : 'bg-ink-muted/10'
-                  }`}>
-                    {pan?.assetUrl ? (
-                      <img src={pan.assetUrl} alt={`Panel ${p.panel}`} className="w-full h-full object-cover" />
-                    ) : p.status === 'complete' ? (
-                      <>
-                        <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `linear-gradient(135deg, rgba(212,168,67,0.3) 0%, transparent 50%)` }} />
-                        <Image size={20} className="text-ink-muted/50" />
-                      </>
-                    ) : p.status === 'review' ? (
-                      <Image size={20} className="text-ink-muted/50" />
-                    ) : (
-                      <div className="flex flex-col items-center gap-1">
-                        <Layers size={18} className="text-ink-muted/30" />
-                        <span className="text-[9px] text-ink-muted font-sans">Awaiting art</span>
-                      </div>
-                    )}
-                    {/* Status badge overlay */}
-                    {p.status !== 'missing' && (
-                      <div className="absolute top-2 right-2">
-                        {p.status === 'complete'
-                          ? <Check size={14} className="text-status-approved" />
-                          : <AlertCircle size={14} className="text-status-draft" />}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="px-3 py-2 bg-ink-dark border-t border-ink-border/50">
-                    <div className="text-[10px] font-mono text-ink-text">P{p.page} · Panel {p.panel}</div>
-                    <div className="text-[11px] text-ink-muted font-sans truncate mt-0.5">{p.label}</div>
-
-                    {/* Review controls — only shown when draft received */}
-                    {p.status === 'review' && (
-                      <div className="mt-2 space-y-1">
-                        {showChangesFor === p.id ? (
-                          <div className="space-y-1">
-                            <textarea
-                              placeholder="Note for artist…"
-                              value={changesNote[p.id] ?? ''}
-                              onChange={e => setChangesNote(prev => ({ ...prev, [p.id]: e.target.value }))}
-                              rows={2}
-                              className="w-full bg-ink-panel border border-ink-border rounded px-2 py-1 text-[10px] font-sans text-ink-light placeholder:text-ink-muted outline-none resize-none"
-                            />
-                            <div className="flex gap-1">
-                              <button
-                                onClick={() => requestChanges(p.id, pageId)}
-                                className="flex-1 py-1 rounded text-[10px] font-sans bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                              >
-                                Send
-                              </button>
-                              <button
-                                onClick={() => setShowChangesFor(null)}
-                                className="px-2 py-1 rounded text-[10px] text-ink-muted hover:text-ink-text transition-colors"
-                              >
-                                <X size={10} />
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => approve(p.id, pageId)}
-                              className="flex-1 py-1 rounded text-[10px] font-sans bg-status-approved/20 text-status-approved hover:bg-status-approved/30 transition-colors flex items-center justify-center gap-1"
-                            >
-                              <Check size={9} /> Approve
-                            </button>
-                            <button
-                              onClick={() => setShowChangesFor(p.id)}
-                              className="flex-1 py-1 rounded text-[10px] font-sans bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors"
-                            >
-                              Changes
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                )
-              })}
-            </div>
-          </div>
+          <PanelGrid
+            panels={panels}
+            episode={episode}
+            changesNote={changesNote}
+            showChangesFor={showChangesFor}
+            onApprove={approve}
+            onRequestChanges={requestChanges}
+            onBulkApprovePage={bulkApprovePage}
+            onChangesNoteChange={handleChangesNoteChange}
+            onShowChangesFor={setShowChangesFor}
+          />
         </div>
       </div>
 

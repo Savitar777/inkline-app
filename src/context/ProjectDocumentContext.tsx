@@ -124,7 +124,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (!projectId) return
 
     let cancelled = false
-    setLoading(true)
+    setLoading(true) // eslint-disable-line react-hooks/set-state-in-effect -- intentional: show loading while fetching
 
     void (async () => {
       const remoteProject = await svc.fetchProject(projectId)

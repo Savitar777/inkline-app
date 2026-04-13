@@ -17,7 +17,7 @@ export default function ToastContainer() {
       {toasts.map(toast => (
         <div
           key={toast.id}
-          className={`pointer-events-auto flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-sans shadow-lg backdrop-blur-sm ink-stage-enter ${toneStyles[toast.type]}`}
+          className={`pointer-events-auto flex items-center gap-3 rounded-lg border px-4 py-3 text-sm font-sans shadow-lg backdrop-blur-sm animate-toast-in ${toneStyles[toast.type]}`}
         >
           <span>{toast.message}</span>
           <button

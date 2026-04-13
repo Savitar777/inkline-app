@@ -1,3 +1,4 @@
+import React from 'react'
 import type { Profile } from '../context/AuthContext'
 
 type AvatarSize = 'sm' | 'md' | 'lg'
@@ -19,7 +20,7 @@ interface Props {
   size?: AvatarSize
 }
 
-export default function ProfileAvatar({ profile, size = 'md' }: Props) {
+function ProfileAvatar({ profile, size = 'md' }: Props) {
   const frameClass = sizeClasses[size]
 
   if (profile.avatar_url) {
@@ -40,3 +41,5 @@ export default function ProfileAvatar({ profile, size = 'md' }: Props) {
     </div>
   )
 }
+
+export default React.memo(ProfileAvatar)

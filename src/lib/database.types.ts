@@ -1,6 +1,6 @@
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
-export type UserRole = 'writer' | 'artist' | 'letterer' | 'colorist'
+export type UserRole = 'writer' | 'artist' | 'letterer' | 'colorist' | 'admin'
 export type ProjectFormat = 'webtoon' | 'manhwa' | 'manga' | 'comic'
 export type ContentBlockType = 'dialogue' | 'caption' | 'sfx'
 export type ThreadStatus = 'submitted' | 'in_progress' | 'draft_received' | 'approved'

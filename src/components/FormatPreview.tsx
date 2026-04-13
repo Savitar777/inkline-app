@@ -1,8 +1,9 @@
+import React from 'react'
 import { ArrowRight } from '../icons'
 
 type Format = 'webtoon' | 'manhwa' | 'manga' | 'comic'
 
-export default function FormatPreview({ format }: { format: Format }) {
+function FormatPreview({ format }: { format: Format }) {
   if (format === 'webtoon' || format === 'manhwa') {
     return (
       <div className="flex flex-col items-center gap-1.5 w-24">
@@ -71,3 +72,5 @@ export default function FormatPreview({ format }: { format: Format }) {
     </div>
   )
 }
+
+export default React.memo(FormatPreview)

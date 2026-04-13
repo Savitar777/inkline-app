@@ -229,7 +229,7 @@ export default function CommandPalette() {
         role="dialog"
         aria-modal="true"
         aria-label="Search commands and project content"
-        className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-ink-border bg-ink-dark shadow-2xl"
+        className="mx-auto w-full max-w-2xl overflow-hidden rounded-2xl border border-ink-border bg-ink-dark shadow-2xl animate-scale-in"
         onClick={event => event.stopPropagation()}
       >
         <div className="border-b border-ink-border px-4 py-3">

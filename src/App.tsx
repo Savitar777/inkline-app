@@ -53,21 +53,21 @@ function ShellFallback() {
     <div className="flex h-full bg-ink-black">
       {/* Sidebar skeleton */}
       <div className="hidden md:flex w-56 flex-col border-r border-ink-border bg-ink-dark p-4 gap-3">
-        <div className="h-5 w-24 rounded bg-ink-panel animate-pulse" />
-        <div className="h-4 w-32 rounded bg-ink-panel/60 animate-pulse" />
+        <div className="h-5 w-24 rounded ink-shimmer" />
+        <div className="h-4 w-32 rounded ink-shimmer" />
         <div className="mt-4 space-y-2">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-8 rounded-lg bg-ink-panel animate-pulse" />
+            <div key={i} className="h-8 rounded-lg ink-shimmer" />
           ))}
         </div>
       </div>
       {/* Content skeleton */}
       <div className="flex-1 p-6 space-y-4">
-        <div className="h-6 w-48 rounded bg-ink-panel animate-pulse" />
-        <div className="h-4 w-64 rounded bg-ink-panel/60 animate-pulse" />
+        <div className="h-6 w-48 rounded ink-shimmer" />
+        <div className="h-4 w-64 rounded ink-shimmer" />
         <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
           {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-28 rounded-xl border border-ink-border bg-ink-dark animate-pulse" />
+            <div key={i} className="h-28 rounded-xl border border-ink-border bg-ink-dark ink-shimmer" />
           ))}
         </div>
       </div>

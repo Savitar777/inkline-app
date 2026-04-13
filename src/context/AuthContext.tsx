@@ -20,6 +20,7 @@ interface AuthContextType {
   loading: boolean
   signUp: (email: string, password: string, name: string, role: UserRole) => Promise<string | null>
   signIn: (email: string, password: string) => Promise<string | null>
+  signInWithGoogle: () => Promise<string | null>
   signOut: () => Promise<void>
   updateProfile: (updates: Pick<Profile, 'name' | 'avatar_url'>) => Promise<string | null>
 }
@@ -63,12 +64,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .select('*')
         .eq('id', userId)
         .single()
-      if (error) { console.error('[AuthContext] fetchProfile:', error); return null }
+      if (error) { if (import.meta.env.DEV) console.error('[AuthContext] fetchProfile:', error); return null }
       const p = data as Profile
       setProfile(p)
       return p
     } catch (err) {
-      console.error('[AuthContext] fetchProfile unexpected:', err)
+      if (import.meta.env.DEV) console.error('[AuthContext] fetchProfile unexpected:', err)
       return null
     }
   }
@@ -115,6 +116,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return error?.message ?? null
   }
 
+  const signInWithGoogle = async (): Promise<string | null> => {
+    if (!isSupabaseConfigured) return 'Auth is unavailable in offline mode.'
+
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin },
+    })
+    return error?.message ?? null
+  }
+
   const signOut = async () => {
     if (!isSupabaseConfigured) return
     await supabase.auth.signOut()
@@ -141,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .single()
 
     if (error) {
-      console.error('[AuthContext] updateProfile:', error)
+      if (import.meta.env.DEV) console.error('[AuthContext] updateProfile:', error)
       return error.message
     }
 
@@ -150,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, profile, session, loading, signUp, signIn, signOut, updateProfile }}>
+    <AuthContext.Provider value={{ user, profile, session, loading, signUp, signIn, signInWithGoogle, signOut, updateProfile }}>
       {children}
     </AuthContext.Provider>
   )

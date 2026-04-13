@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PenLine } from '../../icons'
+import { PenLine, Google } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 
 interface Props {
@@ -7,11 +7,12 @@ interface Props {
 }
 
 export default function Login({ onGoToSignup }: Props) {
-  const { signIn } = useAuth()
+  const { signIn, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -20,6 +21,16 @@ export default function Login({ onGoToSignup }: Props) {
     const err = await signIn(email, password)
     if (err) setError(err)
     setLoading(false)
+  }
+
+  const handleGoogleSignIn = async () => {
+    setError(null)
+    setGoogleLoading(true)
+    const err = await signInWithGoogle()
+    if (err) {
+      setError(err)
+      setGoogleLoading(false)
+    }
   }
 
   return (
@@ -37,6 +48,25 @@ export default function Login({ onGoToSignup }: Props) {
           <h1 className="font-serif text-xl text-ink-light mb-1">Welcome back</h1>
           <p className="text-xs text-ink-text font-sans mb-6">Sign in to continue to your projects.</p>
 
+          {/* Google OAuth */}
+          <button
+            type="button"
+            onClick={handleGoogleSignIn}
+            disabled={googleLoading || loading}
+            className="w-full flex items-center justify-center gap-2.5 bg-ink-panel border border-ink-border rounded-lg py-2.5 text-sm font-sans text-ink-light hover:border-ink-gold/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Google size={18} />
+            {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-ink-border" />
+            <span className="text-[10px] uppercase tracking-widest text-ink-muted font-sans">or</span>
+            <div className="flex-1 h-px bg-ink-border" />
+          </div>
+
+          {/* Email form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] uppercase tracking-wider text-ink-muted font-sans mb-1.5">
@@ -74,7 +104,7 @@ export default function Login({ onGoToSignup }: Props) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || googleLoading}
               className="w-full bg-ink-gold text-ink-black font-sans font-semibold text-sm rounded-lg py-2.5 hover:bg-ink-gold-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {loading ? 'Signing in…' : 'Sign In'}

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { PenLine, Check } from '../../icons'
+import { PenLine, Check, Google } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import type { UserRole } from '../../lib/database.types'
 
@@ -15,13 +15,14 @@ const roles: { id: UserRole; label: string; desc: string }[] = [
 ]
 
 export default function Signup({ onGoToLogin }: Props) {
-  const { signUp } = useAuth()
+  const { signUp, signInWithGoogle } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<UserRole>('writer')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
   const [done, setDone] = useState(false)
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -33,6 +34,16 @@ export default function Signup({ onGoToLogin }: Props) {
     setLoading(false)
     if (err) setError(err)
     else setDone(true)
+  }
+
+  const handleGoogleSignUp = async () => {
+    setError(null)
+    setGoogleLoading(true)
+    const err = await signInWithGoogle()
+    if (err) {
+      setError(err)
+      setGoogleLoading(false)
+    }
   }
 
   if (done) {
@@ -69,6 +80,25 @@ export default function Signup({ onGoToLogin }: Props) {
           <h1 className="font-serif text-xl text-ink-light mb-1">Create your account</h1>
           <p className="text-xs text-ink-text font-sans mb-6">Join Inkline and start building your comic.</p>
 
+          {/* Google OAuth */}
+          <button
+            type="button"
+            onClick={handleGoogleSignUp}
+            disabled={googleLoading || loading}
+            className="w-full flex items-center justify-center gap-2.5 bg-ink-panel border border-ink-border rounded-lg py-2.5 text-sm font-sans text-ink-light hover:border-ink-gold/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Google size={18} />
+            {googleLoading ? 'Redirecting…' : 'Continue with Google'}
+          </button>
+
+          {/* Divider */}
+          <div className="flex items-center gap-3 my-5">
+            <div className="flex-1 h-px bg-ink-border" />
+            <span className="text-[10px] uppercase tracking-widest text-ink-muted font-sans">or</span>
+            <div className="flex-1 h-px bg-ink-border" />
+          </div>
+
+          {/* Email form */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-[11px] uppercase tracking-wider text-ink-muted font-sans mb-1.5">Name</label>
@@ -141,7 +171,7 @@ export default function Signup({ onGoToLogin }: Props) {
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || googleLoading}
               className="w-full bg-ink-gold text-ink-black font-sans font-semibold text-sm rounded-lg py-2.5 hover:bg-ink-gold-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
               {loading ? 'Creating account…' : 'Create Account'}

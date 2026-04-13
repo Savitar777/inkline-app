@@ -14,7 +14,7 @@ export const isSupabaseConfigured: boolean = !!(
   !supabaseUrl.includes('placeholder')
 )
 
-if (!isSupabaseConfigured) {
+if (!isSupabaseConfigured && import.meta.env.DEV) {
   console.warn(
     'Supabase env vars missing or placeholder — running in offline/mock mode.\n' +
     'Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env.local to connect.',

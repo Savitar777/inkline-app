@@ -1,4 +1,4 @@
-import { useMemo, forwardRef } from 'react'
+import React, { useMemo, forwardRef } from 'react'
 import { Image, Layers } from '../icons'
 import type { Page } from '../types'
 import type { LayoutPage, LayoutPanel } from '../lib/assemblyEngine'
@@ -144,4 +144,4 @@ const AssemblyPreview = forwardRef<HTMLDivElement, Props>(
   }
 )
 
-export default AssemblyPreview
+export default React.memo(AssemblyPreview)
