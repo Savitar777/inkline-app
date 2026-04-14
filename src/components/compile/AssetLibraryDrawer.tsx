@@ -1,7 +1,11 @@
-import { memo, useState, useEffect, useCallback } from 'react'
+import { memo, useState, useEffect, useCallback, useMemo } from 'react'
 import { X, Trash2, FileText, Image as ImageIcon } from '../../icons'
-import { listProjectFiles, deleteFileRecord } from '../../services/fileMetadataService'
+import { listProjectFiles, deleteFileRecord, searchProjectFiles, updateFileTags } from '../../services/fileMetadataService'
 import { useToast } from '../../context/ToastContext'
+import { useProject } from '../../context/ProjectContext'
+import AssetSearchBar from '../assets/AssetSearchBar'
+import TagChips from '../assets/TagChips'
+import TagEditor from '../assets/TagEditor'
 import type { UploadedFile, FileCategory } from '../../types/files'
 
 interface AssetLibraryDrawerProps {
@@ -25,15 +29,21 @@ function isImageMime(mime: string): boolean {
 
 function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProps) {
   const { showToast } = useToast()
+  const { project: _project } = useProject()
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [loading, setLoading] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [activeTags, setActiveTags] = useState<string[]>([])
+  const [expandedFileId, setExpandedFileId] = useState<string | null>(null)
 
   const loadFiles = useCallback(async () => {
     setLoading(true)
-    const result = await listProjectFiles(projectId)
+    const result = (searchQuery || activeTags.length > 0)
+      ? await searchProjectFiles(projectId, searchQuery, activeTags)
+      : await listProjectFiles(projectId)
     setFiles(result)
     setLoading(false)
-  }, [projectId])
+  }, [projectId, searchQuery, activeTags])
 
   useEffect(() => {
     if (open) void loadFiles()
@@ -51,6 +61,32 @@ function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProp
     showToast('URL copied', 'success')
   }
 
+  const handleTagToggle = (tag: string) => {
+    setActiveTags(prev =>
+      prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
+    )
+  }
+
+  const handleAddTag = async (fileId: string, tag: string) => {
+    const file = files.find(f => f.id === fileId)
+    if (!file) return
+    const newTags = [...(file.metadata.tags ?? []), tag]
+    await updateFileTags(fileId, newTags, file.metadata.autoTags ?? [], projectId)
+    setFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, metadata: { ...f.metadata, tags: newTags } } : f
+    ))
+  }
+
+  const handleRemoveTag = async (fileId: string, tag: string) => {
+    const file = files.find(f => f.id === fileId)
+    if (!file) return
+    const newTags = (file.metadata.tags ?? []).filter(t => t !== tag)
+    await updateFileTags(fileId, newTags, file.metadata.autoTags ?? [], projectId)
+    setFiles(prev => prev.map(f =>
+      f.id === fileId ? { ...f, metadata: { ...f.metadata, tags: newTags } } : f
+    ))
+  }
+
   // Group by category
   const grouped = files.reduce<Record<string, UploadedFile[]>>((acc, file) => {
     const key = file.category
@@ -58,6 +94,76 @@ function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProp
     acc[key].push(file)
     return acc
   }, {})
+
+  const allTags = useMemo(() => {
+    const tagCounts = new Map<string, number>()
+    for (const file of files) {
+      const all = [...(file.metadata.tags ?? []), ...(file.metadata.autoTags ?? [])]
+      for (const t of all) tagCounts.set(t, (tagCounts.get(t) ?? 0) + 1)
+    }
+    return [...tagCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .map(([tag]) => tag)
+      .slice(0, 20)
+  }, [files])
+
+  const isFiltered = searchQuery || activeTags.length > 0
+
+  const renderFileCard = (file: UploadedFile) => (
+    <div key={file.id}>
+      <div
+        className="group flex items-center gap-2 px-2.5 py-2 rounded-lg border border-ink-border bg-ink-panel hover:border-ink-gold/20 transition-colors cursor-pointer"
+        onClick={() => setExpandedFileId(expandedFileId === file.id ? null : file.id)}
+      >
+        {isImageMime(file.mimeType) ? (
+          <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-ink-black/30">
+            {file.publicUrl ? (
+              <img src={file.publicUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
+            ) : (
+              <ImageIcon size={14} className="text-ink-muted m-auto mt-1.5" />
+            )}
+          </div>
+        ) : (
+          <FileText size={14} className="text-ink-muted shrink-0" />
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs text-ink-text font-sans truncate">{file.originalName}</p>
+          <p className="text-[10px] text-ink-muted font-sans">
+            {(file.sizeBytes / 1024).toFixed(1)} KB
+          </p>
+        </div>
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {file.publicUrl && (
+            <button
+              aria-label="Copy URL"
+              onClick={(e) => { e.stopPropagation(); handleCopyUrl(file.publicUrl) }}
+              className="p-1 rounded text-ink-muted hover:text-ink-gold transition-colors text-[10px] font-sans"
+              title="Copy URL"
+            >
+              URL
+            </button>
+          )}
+          <button
+            aria-label="Delete file"
+            onClick={(e) => { e.stopPropagation(); void handleDelete(file.id) }}
+            className="p-1 rounded text-ink-muted hover:text-red-400 transition-colors"
+          >
+            <Trash2 size={10} />
+          </button>
+        </div>
+      </div>
+      {expandedFileId === file.id && (
+        <div className="px-2.5 pb-2">
+          <TagEditor
+            tags={file.metadata.tags ?? []}
+            autoTags={file.metadata.autoTags ?? []}
+            onAddTag={(tag) => void handleAddTag(file.id, tag)}
+            onRemoveTag={(tag) => void handleRemoveTag(file.id, tag)}
+          />
+        </div>
+      )}
+    </div>
+  )
 
   if (!open) return null
 
@@ -69,6 +175,12 @@ function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProp
         <button onClick={onClose} aria-label="Close" className="p-1 rounded text-ink-muted hover:text-ink-text transition-colors">
           <X size={14} />
         </button>
+      </div>
+
+      {/* Search & Filter */}
+      <div className="px-3 py-2 space-y-2 border-b border-ink-border">
+        <AssetSearchBar value={searchQuery} onChange={setSearchQuery} />
+        <TagChips tags={allTags} activeTags={activeTags} onToggle={handleTagToggle} />
       </div>
 
       {/* Content */}
@@ -86,55 +198,25 @@ function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProp
           </div>
         )}
 
-        {Object.entries(grouped).map(([category, catFiles]) => (
-          <div key={category}>
-            <p className="text-[10px] uppercase tracking-wider text-ink-muted font-sans mb-2">
-              {CATEGORY_LABELS[category as FileCategory] ?? category} ({catFiles.length})
-            </p>
+        {!loading && isFiltered ? (
+          <>
+            <p className="text-[10px] text-ink-muted font-sans mb-2">{files.length} file{files.length !== 1 ? 's' : ''} matching</p>
             <div className="space-y-1.5">
-              {catFiles.map(file => (
-                <div key={file.id} className="group flex items-center gap-2 px-2.5 py-2 rounded-lg border border-ink-border bg-ink-panel hover:border-ink-gold/20 transition-colors">
-                  {isImageMime(file.mimeType) ? (
-                    <div className="w-8 h-8 rounded overflow-hidden shrink-0 bg-ink-black/30">
-                      {file.publicUrl ? (
-                        <img src={file.publicUrl} alt="" className="w-full h-full object-cover" loading="lazy" />
-                      ) : (
-                        <ImageIcon size={14} className="text-ink-muted m-auto mt-1.5" />
-                      )}
-                    </div>
-                  ) : (
-                    <FileText size={14} className="text-ink-muted shrink-0" />
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-ink-text font-sans truncate">{file.originalName}</p>
-                    <p className="text-[10px] text-ink-muted font-sans">
-                      {(file.sizeBytes / 1024).toFixed(1)} KB
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    {file.publicUrl && (
-                      <button
-                        aria-label="Copy URL"
-                        onClick={() => handleCopyUrl(file.publicUrl)}
-                        className="p-1 rounded text-ink-muted hover:text-ink-gold transition-colors text-[10px] font-sans"
-                        title="Copy URL"
-                      >
-                        URL
-                      </button>
-                    )}
-                    <button
-                      aria-label="Delete file"
-                      onClick={() => handleDelete(file.id)}
-                      className="p-1 rounded text-ink-muted hover:text-red-400 transition-colors"
-                    >
-                      <Trash2 size={10} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+              {files.map(renderFileCard)}
             </div>
-          </div>
-        ))}
+          </>
+        ) : (
+          !loading && Object.entries(grouped).map(([category, catFiles]) => (
+            <div key={category}>
+              <p className="text-[10px] uppercase tracking-wider text-ink-muted font-sans mb-2">
+                {CATEGORY_LABELS[category as FileCategory] ?? category} ({catFiles.length})
+              </p>
+              <div className="space-y-1.5">
+                {catFiles.map(renderFileCard)}
+              </div>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )
