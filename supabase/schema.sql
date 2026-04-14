@@ -132,6 +132,23 @@ create table panel_assets (
   created_at    timestamptz not null default now()
 );
 
+create table uploaded_files (
+  id            uuid primary key default gen_random_uuid(),
+  project_id    uuid not null references projects(id) on delete cascade,
+  category      text not null,
+  original_name text not null,
+  storage_path  text not null,
+  public_url    text,
+  mime_type     text not null,
+  size_bytes    bigint not null,
+  uploaded_by   uuid not null references users(id) on delete cascade,
+  status        text not null default 'pending',
+  error_message text,
+  metadata      jsonb not null default '{}',
+  tags          text[] not null default '{}',
+  created_at    timestamptz not null default now()
+);
+
 -- ═══════════════════════════════════════════════════════════════
 -- 3. INDEXES
 -- ═══════════════════════════════════════════════════════════════
@@ -152,6 +169,9 @@ create index idx_pa_panel          on panel_assets    using btree (panel_id);
 create index idx_threads_created   on threads         using btree (created_at);
 create index idx_messages_created  on messages        using btree (created_at);
 create index idx_pa_panel_version  on panel_assets    using btree (panel_id, version);
+create index idx_uf_project     on uploaded_files using btree (project_id);
+create index idx_uf_tags        on uploaded_files using gin (tags);
+create index idx_uf_category    on uploaded_files using btree (project_id, category);
 
 -- ═══════════════════════════════════════════════════════════════
 -- 4. ENABLE ROW LEVEL SECURITY
@@ -168,6 +188,7 @@ alter table characters      enable row level security;
 alter table threads         enable row level security;
 alter table messages        enable row level security;
 alter table panel_assets    enable row level security;
+alter table uploaded_files  enable row level security;
 
 -- ═══════════════════════════════════════════════════════════════
 -- 5. HELPER FUNCTIONS (used by policies below)
@@ -471,6 +492,29 @@ create policy "messages_delete"
   using (
     sender_id = (select auth.uid())
     and exists (select 1 from threads t where t.id = messages.thread_id and is_project_member(t.project_id))
+  );
+
+-- ── uploaded_files ──
+create policy "uploaded_files: members can read"
+  on uploaded_files for select
+  using (project_id in (select project_id from project_members where user_id = auth.uid()));
+
+create policy "uploaded_files: members can insert"
+  on uploaded_files for insert
+  with check (project_id in (select project_id from project_members where user_id = auth.uid()));
+
+create policy "uploaded_files: uploader or admin can update"
+  on uploaded_files for update
+  using (
+    uploaded_by = auth.uid()
+    or project_id in (select project_id from project_members where user_id = auth.uid() and role = 'admin')
+  );
+
+create policy "uploaded_files: uploader or admin can delete"
+  on uploaded_files for delete
+  using (
+    uploaded_by = auth.uid()
+    or project_id in (select project_id from project_members where user_id = auth.uid() and role = 'admin')
   );
 
 -- ── panel_assets ──
