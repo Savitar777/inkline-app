@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { CheckCircle2, Clock, Download, MessageSquare } from '../../icons'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import type { ProjectActivitySummary } from '../../types'
@@ -45,7 +46,7 @@ const cards = [
   },
 ] as const
 
-export default function WorkspaceActivityRail({ summary }: WorkspaceActivityRailProps) {
+function WorkspaceActivityRail({ summary }: WorkspaceActivityRailProps) {
   const { setActiveView } = useWorkspace()
 
   return (
@@ -75,3 +76,5 @@ export default function WorkspaceActivityRail({ summary }: WorkspaceActivityRail
     </section>
   )
 }
+
+export default memo(WorkspaceActivityRail)

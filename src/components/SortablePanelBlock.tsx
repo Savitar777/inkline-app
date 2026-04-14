@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import PanelBlock from './PanelBlock'
@@ -15,7 +16,7 @@ interface Props {
   onDeleteBlock: (panelId: string, blockId: string) => void
 }
 
-export default function SortablePanelBlock(props: Props) {
+function SortablePanelBlock(props: Props) {
   const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: props.panel.id })
 
   const style = {
@@ -32,3 +33,5 @@ export default function SortablePanelBlock(props: Props) {
     </div>
   )
 }
+
+export default memo(SortablePanelBlock)

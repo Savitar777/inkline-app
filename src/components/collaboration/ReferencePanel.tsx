@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { memo, useState, useEffect, useCallback } from 'react'
 import { Trash2, FileText } from '../../icons'
 import FileUploadZone from '../FileUploadZone'
 import { uploadReferenceFile, listReferenceFiles, deleteReferenceFile } from '../../services/referenceFileService'
@@ -15,7 +15,7 @@ function isImageMime(mime: string): boolean {
   return mime.startsWith('image/')
 }
 
-export default function ReferencePanel({ projectId, episodeId }: ReferencePanelProps) {
+function ReferencePanel({ projectId, episodeId }: ReferencePanelProps) {
   const { profile } = useAuth()
   const { showToast } = useToast()
   const [files, setFiles] = useState<UploadedFile[]>([])
@@ -130,3 +130,5 @@ export default function ReferencePanel({ projectId, episodeId }: ReferencePanelP
     </div>
   )
 }
+
+export default memo(ReferencePanel)

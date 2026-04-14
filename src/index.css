@@ -80,16 +80,6 @@ textarea:focus-visible,
   }
 }
 
-@keyframes slide-in-left {
-  from { transform: translateX(-100%); }
-  to { transform: translateX(0); }
-}
-
-@keyframes slide-in-right {
-  from { transform: translateX(100%); }
-  to { transform: translateX(0); }
-}
-
 .ink-fade-in {
   animation: ink-fade-in 200ms ease-out;
 }

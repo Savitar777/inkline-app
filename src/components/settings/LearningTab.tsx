@@ -1,9 +1,9 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useTutorial } from '../../context/TutorialContext'
 import { TUTORIAL_MODULES } from '../../data/tutorials/modules'
 import type { TutorialDifficulty } from '../../data/tutorials/types'
 
-export default function LearningTab() {
+function LearningTab() {
   const { completedModuleIds, tipsEnabled, difficulty, setTipsEnabled, setDifficulty, resetProgress } = useTutorial()
   const [confirmReset, setConfirmReset] = useState(false)
 
@@ -102,3 +102,5 @@ export default function LearningTab() {
     </div>
   )
 }
+
+export default memo(LearningTab)

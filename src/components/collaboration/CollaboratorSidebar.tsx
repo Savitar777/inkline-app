@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { Collaborator } from '../../services/projectService'
 
 interface Deliverable {
@@ -25,7 +26,7 @@ interface CollaboratorSidebarProps {
   onSendInvite: () => void
 }
 
-export default function CollaboratorSidebar({
+function CollaboratorSidebar({
   displayCollaborators,
   typingUsers,
   typingNames,
@@ -140,3 +141,5 @@ export default function CollaboratorSidebar({
     </aside>
   )
 }
+
+export default memo(CollaboratorSidebar)

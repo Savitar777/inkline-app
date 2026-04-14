@@ -1,3 +1,4 @@
+import { memo } from 'react'
 interface TagProps {
   type: 'episode' | 'page' | 'panel' | 'dialogue' | 'caption' | 'sfx'
   children: React.ReactNode
@@ -12,10 +13,12 @@ const colors: Record<string, string> = {
   sfx: 'bg-[#F97316]/15 text-[#F97316] border-[#F97316]/30',
 }
 
-export default function Tag({ type, children }: TagProps) {
+function Tag({ type, children }: TagProps) {
   return (
     <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] uppercase tracking-wider font-mono font-medium border ${colors[type]}`}>
       {children}
     </span>
   )
 }
+
+export default memo(Tag)

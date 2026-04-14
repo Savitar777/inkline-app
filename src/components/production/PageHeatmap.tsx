@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { PageHeatmapEntry, Episode } from '../../types'
 import { STATUS_BG_CLASSES, STATUS_LABELS } from '../../domain/statusColors'
 
@@ -8,7 +8,7 @@ interface PageHeatmapProps {
   onSelectPage?: (episodeId: string, pageId: string) => void
 }
 
-export default function PageHeatmap({ entries, episodes, onSelectPage }: PageHeatmapProps) {
+function PageHeatmap({ entries, episodes, onSelectPage }: PageHeatmapProps) {
   // Group entries by episode
   const grouped = useMemo(() => {
     const map = new Map<string, PageHeatmapEntry[]>()
@@ -59,3 +59,5 @@ export default function PageHeatmap({ entries, episodes, onSelectPage }: PageHea
     </div>
   )
 }
+
+export default memo(PageHeatmap)

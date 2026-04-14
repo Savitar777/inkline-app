@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import { Search, X } from '../icons'
 import { GLOSSARY_ENTRIES } from '../data/tutorials/glossary'
 import { TUTORIAL_MODULES } from '../data/tutorials/modules'
@@ -85,7 +85,7 @@ interface GlossaryListProps {
   onSelectEntry?: (entryId: string) => void
 }
 
-export default function GlossaryList({ onSelectEntry }: GlossaryListProps) {
+function GlossaryList({ onSelectEntry }: GlossaryListProps) {
   const [search, setSearch] = useState('')
 
   const filtered = useMemo(() => {
@@ -168,3 +168,5 @@ export default function GlossaryList({ onSelectEntry }: GlossaryListProps) {
     </div>
   )
 }
+
+export default memo(GlossaryList)

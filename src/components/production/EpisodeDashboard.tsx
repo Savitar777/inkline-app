@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { EpisodeProductionSummary } from '../../types'
 import { STATUS_BG_CLASSES, STATUS_LABELS, ALL_PANEL_STATUSES } from '../../domain/statusColors'
 
@@ -26,7 +27,7 @@ function ProgressBar({ counts }: { counts: EpisodeProductionSummary['statusCount
   )
 }
 
-export default function EpisodeDashboard({ summaries }: EpisodeDashboardProps) {
+function EpisodeDashboard({ summaries }: EpisodeDashboardProps) {
   if (summaries.length === 0) {
     return (
       <div className="flex items-center justify-center py-16 text-ink-muted text-sm font-sans">
@@ -76,3 +77,5 @@ export default function EpisodeDashboard({ summaries }: EpisodeDashboardProps) {
     </div>
   )
 }
+
+export default memo(EpisodeDashboard)

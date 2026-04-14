@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { PenLine, Check, Google } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import type { UserRole } from '../../lib/database.types'
@@ -14,7 +14,7 @@ const roles: { id: UserRole; label: string; desc: string }[] = [
   { id: 'letterer', label: 'Letterer', desc: 'Bubbles and typography' },
 ]
 
-export default function Signup({ onGoToLogin }: Props) {
+function Signup({ onGoToLogin }: Props) {
   const { signUp, signInWithGoogle } = useAuth()
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -189,3 +189,5 @@ export default function Signup({ onGoToLogin }: Props) {
     </div>
   )
 }
+
+export default memo(Signup)

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { DragEvent } from 'react'
 import FileUploadZone from '../FileUploadZone'
 import type { Panel } from '../../types'
@@ -23,7 +24,7 @@ interface UploadModalProps {
   onClickSelect: () => void
 }
 
-export default function UploadModal({
+function UploadModal({
   uploadPreview,
   uploading,
   selectedPanelId,
@@ -78,3 +79,5 @@ export default function UploadModal({
     </div>
   )
 }
+
+export default memo(UploadModal)

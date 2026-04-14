@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import { Download, Upload, AlertCircle, Check } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/PreferencesContext'
@@ -16,7 +16,7 @@ interface DataTabProps {
   setStatus: (status: { tone: 'success' | 'error'; message: string } | null) => void
 }
 
-export default function DataTab({ projectActions, status, setStatus }: DataTabProps) {
+function DataTab({ projectActions, status, setStatus }: DataTabProps) {
   const { user, signOut } = useAuth()
   const { resetPreferences } = usePreferences()
   const importRef = useRef<HTMLInputElement>(null)
@@ -134,3 +134,5 @@ export default function DataTab({ projectActions, status, setStatus }: DataTabPr
     </section>
   )
 }
+
+export default memo(DataTab)

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { memo, useState, useEffect, useCallback } from 'react'
 import { X, Trash2, FileText, Image as ImageIcon } from '../../icons'
 import { listProjectFiles, deleteFileRecord } from '../../services/fileMetadataService'
 import { useToast } from '../../context/ToastContext'
@@ -23,7 +23,7 @@ function isImageMime(mime: string): boolean {
   return mime.startsWith('image/')
 }
 
-export default function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProps) {
+function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProps) {
   const { showToast } = useToast()
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [loading, setLoading] = useState(false)
@@ -139,3 +139,5 @@ export default function AssetLibraryDrawer({ projectId, open, onClose }: AssetLi
     </div>
   )
 }
+
+export default memo(AssetLibraryDrawer)

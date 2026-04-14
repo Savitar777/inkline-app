@@ -472,7 +472,7 @@ function WorkspaceShell({ onBackToDashboard }: { onBackToDashboard?: () => void 
         )}
       </main>
       {isMobile && (
-        <nav className="flex border-t border-ink-border bg-ink-dark" aria-label="Mobile navigation">
+        <nav className="flex border-t border-ink-border bg-ink-dark pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
           {viewTabs.map(tab => {
             const Icon = mobileTabIcons[tab.id]
             const active = activeView === tab.id

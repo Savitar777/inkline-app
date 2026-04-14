@@ -1,19 +1,27 @@
 /* eslint-disable react-refresh/only-export-components */
 import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'react'
 import { getDefaultEpisodeId } from '../domain/selectors'
-import { ProjectDocumentProvider, useProjectDocument, type ImportProjectResult } from './ProjectDocumentContext'
+import {
+  ProjectDocumentProvider,
+  useProjectDocumentState,
+  useProjectDocumentActions,
+  type ImportProjectResult,
+} from './ProjectDocumentContext'
 import { useWorkspace } from './WorkspaceContext'
 import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, StoryBible, Thread } from '../types'
 
-interface ProjectContextType {
+interface ProjectStateType {
   project: Project
   loading: boolean
   canUndo: boolean
   canRedo: boolean
+  activeEpisodeId: string
+}
+
+interface ProjectActionsType {
+  setActiveEpisodeId: (id: string) => void
   undo: () => void
   redo: () => void
-  activeEpisodeId: string
-  setActiveEpisodeId: (id: string) => void
   setProjectTitle: (title: string) => void
   newProject: () => void
   exportProject: () => void
@@ -41,14 +49,18 @@ interface ProjectContextType {
   addMessage: (threadId: string, message: Message) => void
 }
 
-const ProjectContext = createContext<ProjectContextType | null>(null)
+type ProjectContextType = ProjectStateType & ProjectActionsType
+
+const ProjectStateContext = createContext<ProjectStateType | null>(null)
+const ProjectActionsContext = createContext<ProjectActionsType | null>(null)
 
 function ProjectBridge({ children }: { children: ReactNode }) {
-  const document = useProjectDocument()
+  const docState = useProjectDocumentState()
+  const docActions = useProjectDocumentActions()
   const { activeEpisodeId, setActiveEpisodeId } = useWorkspace()
-  const nextEpisodeId = activeEpisodeId && document.project.episodes.some(episode => episode.id === activeEpisodeId)
+  const nextEpisodeId = activeEpisodeId && docState.project.episodes.some(episode => episode.id === activeEpisodeId)
     ? activeEpisodeId
-    : getDefaultEpisodeId(document.project)
+    : getDefaultEpisodeId(docState.project)
 
   useEffect(() => {
     if (nextEpisodeId !== activeEpisodeId) {
@@ -56,16 +68,22 @@ function ProjectBridge({ children }: { children: ReactNode }) {
     }
   }, [activeEpisodeId, nextEpisodeId, setActiveEpisodeId])
 
-  const value = useMemo<ProjectContextType>(() => ({
-    ...document,
+  const stateValue = useMemo<ProjectStateType>(() => ({
+    ...docState,
     activeEpisodeId: nextEpisodeId ?? '',
+  }), [docState, nextEpisodeId])
+
+  const actionsValue = useMemo<ProjectActionsType>(() => ({
+    ...docActions,
     setActiveEpisodeId: (id: string) => setActiveEpisodeId(id),
-  }), [document, nextEpisodeId, setActiveEpisodeId])
+  }), [docActions, setActiveEpisodeId])
 
   return (
-    <ProjectContext.Provider value={value}>
-      {children}
-    </ProjectContext.Provider>
+    <ProjectActionsContext.Provider value={actionsValue}>
+      <ProjectStateContext.Provider value={stateValue}>
+        {children}
+      </ProjectStateContext.Provider>
+    </ProjectActionsContext.Provider>
   )
 }
 
@@ -82,8 +100,21 @@ export function ProjectProvider({ children, projectId }: ProviderProps) {
   )
 }
 
-export function useProject() {
-  const context = useContext(ProjectContext)
-  if (!context) throw new Error('useProject must be used within ProjectProvider')
+export function useProjectState() {
+  const context = useContext(ProjectStateContext)
+  if (!context) throw new Error('useProjectState must be used within ProjectProvider')
   return context
+}
+
+export function useProjectActions() {
+  const context = useContext(ProjectActionsContext)
+  if (!context) throw new Error('useProjectActions must be used within ProjectProvider')
+  return context
+}
+
+/** Backward-compatible hook returning merged state + actions */
+export function useProject(): ProjectContextType {
+  const state = useProjectState()
+  const actions = useProjectActions()
+  return useMemo(() => ({ ...state, ...actions }), [state, actions])
 }

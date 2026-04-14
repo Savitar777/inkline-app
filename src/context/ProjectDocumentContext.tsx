@@ -6,6 +6,7 @@ import { parseProjectDocument, serializeProjectDocument, type ProjectImportError
 import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, StoryBible, Thread } from '../types'
 import type { ScriptImportRecord } from '../types/files'
 import { applyImport as applyScriptImportToProject } from '../services/scriptImportService'
+import { useRealtimePanelAssets } from '../hooks/useRealtimePanelAssets'
 
 const STORAGE_KEY = 'inkline-project'
 
@@ -16,11 +17,14 @@ export interface ImportProjectResult {
   error?: ProjectImportError
 }
 
-interface ProjectDocumentContextType {
+interface ProjectDocumentStateType {
   project: Project
   loading: boolean
   canUndo: boolean
   canRedo: boolean
+}
+
+interface ProjectDocumentActionsType {
   undo: () => void
   redo: () => void
   setProjectTitle: (title: string) => void
@@ -51,7 +55,10 @@ interface ProjectDocumentContextType {
   applyScriptImport: (record: ScriptImportRecord, strategy: 'replace' | 'append' | 'merge') => void
 }
 
-const ProjectDocumentContext = createContext<ProjectDocumentContextType | null>(null)
+type ProjectDocumentContextType = ProjectDocumentStateType & ProjectDocumentActionsType
+
+const ProjectDocumentStateContext = createContext<ProjectDocumentStateType | null>(null)
+const ProjectDocumentActionsContext = createContext<ProjectDocumentActionsType | null>(null)
 
 function loadProject(): Project {
   try {
@@ -127,6 +134,8 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     projectRef.current = project
   }, [project])
 
+  useRealtimePanelAssets(projectId, setProject)
+
   useEffect(() => {
     if (!projectId) return
 
@@ -150,13 +159,29 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     }
   }, [projectId, syncHistorySize])
 
+  // Debounced localStorage persistence (2s after last mutation)
   useEffect(() => {
     const timer = window.setTimeout(() => {
       localStorage.setItem(STORAGE_KEY, serializeProjectDocument(project))
-    }, 250)
-
+    }, 2000)
     return () => window.clearTimeout(timer)
   }, [project])
+
+  // Flush to localStorage on tab blur or page close
+  useEffect(() => {
+    const flushNow = () => {
+      localStorage.setItem(STORAGE_KEY, serializeProjectDocument(projectRef.current))
+    }
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'hidden') flushNow()
+    }
+    document.addEventListener('visibilitychange', onVisibilityChange)
+    window.addEventListener('beforeunload', flushNow)
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibilityChange)
+      window.removeEventListener('beforeunload', flushNow)
+    }
+  }, [])
 
   const setProjectTitle = useCallback((title: string) => {
     setProject(current => ({ ...current, title }))
@@ -173,14 +198,15 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
   }, [syncHistorySize])
 
   const exportProject = useCallback(() => {
-    const blob = new Blob([serializeProjectDocument(project)], { type: 'application/json' })
+    const current = projectRef.current
+    const blob = new Blob([serializeProjectDocument(current)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const anchor = document.createElement('a')
     anchor.href = url
-    anchor.download = `${project.title.replace(/\s+/g, '-').toLowerCase()}.json`
+    anchor.download = `${current.title.replace(/\s+/g, '-').toLowerCase()}.json`
     anchor.click()
     URL.revokeObjectURL(url)
-  }, [project])
+  }, [])
 
   const importProject = useCallback((json: string): ImportProjectResult => {
     try {
@@ -604,11 +630,14 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     setProject(current => applyScriptImportToProject(record, strategy, current))
   }, [])
 
-  const value = useMemo<ProjectDocumentContextType>(() => ({
+  const stateValue = useMemo<ProjectDocumentStateType>(() => ({
     project,
     loading,
     canUndo: historySize.undo > 0,
     canRedo: historySize.redo > 0,
+  }), [project, loading, historySize])
+
+  const actionsValue = useMemo<ProjectDocumentActionsType>(() => ({
     undo,
     redo,
     setProjectTitle,
@@ -638,48 +667,60 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     addMessage,
     applyScriptImport,
   }), [
-    addCharacter,
-    addContentBlock,
-    addEpisode,
-    addMessage,
-    applyScriptImport,
-    addPage,
-    addPanel,
-    addThread,
-    historySize,
-    loading,
-    redo,
     undo,
-    deleteCharacter,
-    deleteContentBlock,
-    deleteEpisode,
-    deletePage,
-    deletePanel,
+    redo,
+    setProjectTitle,
+    newProject,
     exportProject,
     importProject,
-    newProject,
-    project,
+    addEpisode,
+    updateEpisode,
+    deleteEpisode,
+    addPage,
+    updatePage,
+    deletePage,
+    addPanel,
+    updatePanel,
+    deletePanel,
+    addContentBlock,
+    updateContentBlock,
+    deleteContentBlock,
+    addCharacter,
+    updateCharacter,
+    deleteCharacter,
     reorderPages,
     reorderPanels,
-    setProjectTitle,
-    updateCharacter,
-    updateContentBlock,
-    updateEpisode,
-    updatePage,
-    updatePanel,
     updateStoryBible,
+    addThread,
     updateThread,
+    addMessage,
+    applyScriptImport,
   ])
 
   return (
-    <ProjectDocumentContext.Provider value={value}>
-      {children}
-    </ProjectDocumentContext.Provider>
+    <ProjectDocumentActionsContext.Provider value={actionsValue}>
+      <ProjectDocumentStateContext.Provider value={stateValue}>
+        {children}
+      </ProjectDocumentStateContext.Provider>
+    </ProjectDocumentActionsContext.Provider>
   )
 }
 
-export function useProjectDocument() {
-  const context = useContext(ProjectDocumentContext)
-  if (!context) throw new Error('useProjectDocument must be used within ProjectDocumentProvider')
+export function useProjectDocumentState() {
+  const context = useContext(ProjectDocumentStateContext)
+  if (!context) throw new Error('useProjectDocumentState must be used within ProjectDocumentProvider')
   return context
+}
+
+export function useProjectDocumentActions() {
+  const context = useContext(ProjectDocumentActionsContext)
+  if (!context) throw new Error('useProjectDocumentActions must be used within ProjectDocumentProvider')
+  return context
+}
+
+/** Backward-compatible hook returning merged state + actions */
+export function useProjectDocument(): ProjectDocumentContextType {
+  const state = useProjectDocumentState()
+  const actions = useProjectDocumentActions()
+  return useMemo(() => ({ ...state, ...actions }), [state, actions])
 }

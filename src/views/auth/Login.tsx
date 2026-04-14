@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { PenLine, Google } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 
@@ -6,7 +6,7 @@ interface Props {
   onGoToSignup: () => void
 }
 
-export default function Login({ onGoToSignup }: Props) {
+function Login({ onGoToSignup }: Props) {
   const { signIn, signInWithGoogle } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -122,3 +122,5 @@ export default function Login({ onGoToSignup }: Props) {
     </div>
   )
 }
+
+export default memo(Login)

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo, useEffect } from 'react'
+import { memo, useState, useCallback, useRef, useMemo, useEffect } from 'react'
 import {
   Check,
   Download,
@@ -36,7 +36,7 @@ function panelThumbStatus(status: PanelStatus | undefined): PanelThumb['status']
 
 /* ─── Component ─── */
 
-export default function CompileExport() {
+function CompileExport() {
   const { project, activeEpisodeId, updatePanel, updateThread } = useProject()
   const { user, profile } = useAuth()
   const { selectedFormat, setSelectedFormat, registerActionHandler } = useWorkspace()
@@ -502,3 +502,5 @@ export default function CompileExport() {
     </div>
   )
 }
+
+export default memo(CompileExport)

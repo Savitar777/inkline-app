@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useProject } from '../context/ProjectContext'
 import { BookOpen, ChevronRight, Globe, MapPin, Plus, ScrollList, Trash2, X } from '../icons'
 import type { Location, StoryArc, StoryArcStatus, StoryBible as StoryBibleType, TimelineEvent, WorldRule } from '../types'
@@ -293,7 +293,7 @@ function TimelineEventEditor({ event, episodes, onUpdate, onDelete }: {
 
 /* ─── Main View ─── */
 
-export default function StoryBible() {
+function StoryBible() {
   const { project, updateStoryBible } = useProject()
   const bible = useMemo<StoryBibleType>(() => project.storyBible ?? { arcs: [], locations: [], worldRules: [], timeline: [] }, [project.storyBible])
   const [activeTab, setActiveTab] = useState<Tab>('arcs')
@@ -498,3 +498,5 @@ export default function StoryBible() {
     </div>
   )
 }
+
+export default memo(StoryBible)

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { PenLine, Plus, BookOpen, Layers, Shield, Users } from '../icons'
 import { useAuth } from '../context/AuthContext'
 import { usePreferences } from '../context/PreferencesContext'
@@ -53,7 +53,7 @@ const ASSIGNABLE_ROLES: { id: UserRole; label: string }[] = [
   { id: 'letterer', label: 'Letterer' },
 ]
 
-export default function ProjectDashboard({ onOpenProject }: Props) {
+function ProjectDashboard({ onOpenProject }: Props) {
   const { profile } = useAuth()
   const { preferences } = usePreferences()
   const [projects, setProjects] = useState<ProjectRow[]>([])
@@ -370,3 +370,5 @@ export default function ProjectDashboard({ onOpenProject }: Props) {
     </div>
   )
 }
+
+export default memo(ProjectDashboard)

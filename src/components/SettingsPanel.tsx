@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from 'react'
+import { memo, useEffect, useState, type ReactNode } from 'react'
 import { X, User, Layers, Download, BookOpen } from '../icons'
 import { useAuth } from '../context/AuthContext'
 import { isSupabaseConfigured } from '../lib/supabase'
@@ -48,7 +48,7 @@ const tabMeta: { id: PanelTab; label: string; description: string; icon: ReactNo
   },
 ]
 
-export default function SettingsPanel({ onClose, projectActions }: SettingsPanelProps) {
+function SettingsPanel({ onClose, projectActions }: SettingsPanelProps) {
   const { profile } = useAuth()
   const [activeTab, setActiveTab] = useState<PanelTab>('profile')
   const [status, setStatus] = useState<{ tone: 'success' | 'error'; message: string } | null>(null)
@@ -147,3 +147,5 @@ export default function SettingsPanel({ onClose, projectActions }: SettingsPanel
     </div>
   )
 }
+
+export default memo(SettingsPanel)

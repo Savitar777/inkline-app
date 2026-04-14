@@ -95,7 +95,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false)
     })
 
-    return () => subscription.unsubscribe()
+    // Proactively refresh session every 45 minutes to prevent token expiry
+    const refreshInterval = window.setInterval(() => {
+      void supabase.auth.refreshSession()
+    }, 45 * 60 * 1000)
+
+    return () => {
+      subscription.unsubscribe()
+      window.clearInterval(refreshInterval)
+    }
   }, [])
 
   const signUp = async (email: string, password: string, name: string, role: UserRole): Promise<string | null> => {

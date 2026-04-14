@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { memo } from 'react'
 import {
   Monitor,
   Smartphone,
@@ -30,7 +31,7 @@ interface FormatPickerProps {
   onSelectFormat: (format: Format) => void
 }
 
-export default function FormatPicker({ selectedFormat, onSelectFormat }: FormatPickerProps) {
+function FormatPicker({ selectedFormat, onSelectFormat }: FormatPickerProps) {
   return (
     <div className="px-6 py-5 border-b border-ink-border">
       <span className="text-xs uppercase tracking-wider text-ink-text font-sans font-medium block mb-3">Output Format</span>
@@ -59,3 +60,5 @@ export default function FormatPicker({ selectedFormat, onSelectFormat }: FormatP
     </div>
   )
 }
+
+export default memo(FormatPicker)

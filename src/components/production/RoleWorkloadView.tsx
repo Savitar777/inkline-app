@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { memo, useMemo } from 'react'
 import type { RoleWorkloadItem, ProductionRole } from '../../types'
 import { STATUS_BORDER_CLASSES, STATUS_TEXT_CLASSES, STATUS_LABELS } from '../../domain/statusColors'
 
@@ -22,7 +22,7 @@ const ACTION_LABELS: Partial<Record<string, string>> = {
   approved: 'Ready for lettering',
 }
 
-export default function RoleWorkloadView({ items, activeRole, onRoleChange }: RoleWorkloadViewProps) {
+function RoleWorkloadView({ items, activeRole, onRoleChange }: RoleWorkloadViewProps) {
   // Group items by episode
   const grouped = useMemo(() => {
     const map = new Map<string, RoleWorkloadItem[]>()
@@ -97,3 +97,5 @@ export default function RoleWorkloadView({ items, activeRole, onRoleChange }: Ro
     </div>
   )
 }
+
+export default memo(RoleWorkloadView)

@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { isSupabaseConfigured } from '../lib/supabase'
 import Login from '../views/auth/Login'
 import Signup from '../views/auth/Signup'
 
-export default function AuthGuard({ children }: { children: React.ReactNode }) {
+function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
   const [view, setView] = useState<'login' | 'signup'>('login')
 
@@ -30,3 +30,5 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   return <>{children}</>
 }
+
+export default memo(AuthGuard)

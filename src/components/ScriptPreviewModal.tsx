@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react'
+import { memo, useRef, useEffect } from 'react'
 import { X } from '../icons'
 import AssemblyPreview from './AssemblyPreview'
 import type { Episode } from '../types'
@@ -9,7 +9,7 @@ interface Props {
   onClose: () => void
 }
 
-export default function ScriptPreviewModal({ episode, format, onClose }: Props) {
+function ScriptPreviewModal({ episode, format, onClose }: Props) {
   const backdropRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function ScriptPreviewModal({ episode, format, onClose }: Props) 
     return () => document.removeEventListener('keydown', handleEsc)
   }, [onClose])
 
-  const pages = useMemo(() => episode.pages, [episode.pages])
+  const pages = episode.pages
 
   return (
     <div
@@ -67,3 +67,5 @@ export default function ScriptPreviewModal({ episode, format, onClose }: Props) 
     </div>
   )
 }
+
+export default memo(ScriptPreviewModal)

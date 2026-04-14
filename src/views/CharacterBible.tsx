@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useProject } from '../context/ProjectContext'
 import { ChevronRight, Plus, Trash2, Users, X } from '../icons'
 import type { Character, CharacterRelationship } from '../types'
@@ -323,7 +323,7 @@ function CharacterDetail({ character, allCharacters, storyArcs, onUpdate, onDele
 
 /* ─── Main View ─── */
 
-export default function CharacterBible() {
+function CharacterBible() {
   const { project, addCharacter, updateCharacter, deleteCharacter } = useProject()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const breakpoint = useBreakpoint()
@@ -442,3 +442,5 @@ export default function CharacterBible() {
     </div>
   )
 }
+
+export default memo(CharacterBible)

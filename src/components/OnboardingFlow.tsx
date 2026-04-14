@@ -1,5 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { PenLine, BookOpen, MessageSquare, Layers, ArrowRight, Check } from '../icons'
 
 const ONBOARDING_KEY = 'inkline:onboarding-complete'
@@ -45,7 +45,7 @@ interface Props {
   onComplete: () => void
 }
 
-export default function OnboardingFlow({ onComplete }: Props) {
+function OnboardingFlow({ onComplete }: Props) {
   const [step, setStep] = useState(0)
   const current = steps[step]
   const isLast = step === steps.length - 1
@@ -115,3 +115,5 @@ export default function OnboardingFlow({ onComplete }: Props) {
     </div>
   )
 }
+
+export default memo(OnboardingFlow)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { Send, Check, X } from '../icons'
 import type { Episode, PanelStatus } from '../types'
 import { useProject } from '../context/ProjectContext'
@@ -14,7 +14,7 @@ interface Props {
   onSubmitted: () => void
 }
 
-export default function SubmitToArtistModal({ episode, onClose, onSubmitted }: Props) {
+function SubmitToArtistModal({ episode, onClose, onSubmitted }: Props) {
   const { project, updatePanel, addThread, addMessage } = useProject()
   const { user } = useAuth()
   const { setActiveThreadId } = useWorkspace()
@@ -190,3 +190,5 @@ export default function SubmitToArtistModal({ episode, onClose, onSubmitted }: P
     </div>
   )
 }
+
+export default memo(SubmitToArtistModal)

@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { useToast } from '../context/ToastContext'
 import { X } from '../icons'
 
@@ -7,7 +8,7 @@ const toneStyles = {
   info: 'border-ink-gold/30 bg-ink-gold/10 text-ink-gold',
 }
 
-export default function ToastContainer() {
+function ToastContainer() {
   const { toasts, dismissToast } = useToast()
 
   if (toasts.length === 0) return null
@@ -32,3 +33,5 @@ export default function ToastContainer() {
     </div>
   )
 }
+
+export default memo(ToastContainer)

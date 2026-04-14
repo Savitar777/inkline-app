@@ -1,4 +1,4 @@
-import { useState, useRef, type DragEvent } from 'react'
+import { memo, useState, useRef, type DragEvent } from 'react'
 import { Upload } from '../icons'
 import type { FileCategory } from '../types/files'
 import { ALLOWED_MIMES } from '../types/files'
@@ -29,7 +29,7 @@ function mimeToAccept(category: FileCategory): string {
   return mimes.join(',')
 }
 
-export default function FileUploadZone({
+function FileUploadZone({
   accept,
   onFiles,
   multiple = false,
@@ -109,3 +109,5 @@ export default function FileUploadZone({
     </div>
   )
 }
+
+export default memo(FileUploadZone)

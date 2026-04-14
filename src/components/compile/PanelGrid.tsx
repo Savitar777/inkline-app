@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import {
   Check,
   AlertCircle,
@@ -9,6 +9,10 @@ import {
   Columns,
 } from '../../icons'
 import type { ChangeRequest, Episode, Panel } from '../../types'
+
+/* ─── Constants ─── */
+
+const GOLD_GRADIENT_STYLE = { backgroundImage: 'linear-gradient(135deg, rgba(212,168,67,0.3) 0%, transparent 50%)' } as const
 
 /* ─── Types ─── */
 
@@ -46,7 +50,7 @@ function RevisionHistory({ panel, onClose }: { panel: Panel; onClose: () => void
                 <div key={rev.id} className="flex gap-3 rounded-lg border border-ink-border bg-ink-panel p-3">
                   <div className="w-20 h-20 rounded bg-ink-dark border border-ink-border overflow-hidden shrink-0">
                     {rev.assetUrl ? (
-                      <img src={rev.assetUrl} alt={`Revision ${i + 1}`} className="w-full h-full object-cover" />
+                      <img src={rev.assetUrl} alt={`Revision ${i + 1}`} loading="lazy" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
                         <Image size={16} className="text-ink-muted/40" />
@@ -166,7 +170,7 @@ function SideBySideModal({ panel, onClose }: { panel: Panel; onClose: () => void
           <div className="flex-1 p-4 overflow-y-auto">
             <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-3">Artwork</span>
             {panel.assetUrl ? (
-              <img src={panel.assetUrl} alt={`Panel ${panel.number} artwork`} className="w-full rounded-lg border border-ink-border" />
+              <img src={panel.assetUrl} alt={`Panel ${panel.number} artwork`} loading="lazy" className="w-full rounded-lg border border-ink-border" />
             ) : (
               <div className="flex flex-col items-center justify-center h-64 bg-ink-panel rounded-lg border border-dashed border-ink-border">
                 <Image size={32} className="text-ink-muted/30 mb-2" />
@@ -209,7 +213,7 @@ interface PanelGridProps {
   onShowChangesFor: (panelId: string | null) => void
 }
 
-export default function PanelGrid({
+function PanelGrid({
   panels,
   episode,
   changesNote,
@@ -286,10 +290,10 @@ export default function PanelGrid({
               p.status === 'missing' ? 'bg-ink-panel' : 'bg-ink-muted/10'
             }`}>
               {pan?.assetUrl ? (
-                <img src={pan.assetUrl} alt={`Panel ${p.panel}`} className="w-full h-full object-cover" />
+                <img src={pan.assetUrl} alt={`Panel ${p.panel}`} loading="lazy" className="w-full h-full object-cover" />
               ) : p.status === 'complete' ? (
                 <>
-                  <div className="absolute inset-0 opacity-5" style={{ backgroundImage: `linear-gradient(135deg, rgba(212,168,67,0.3) 0%, transparent 50%)` }} />
+                  <div className="absolute inset-0 opacity-5" style={GOLD_GRADIENT_STYLE} />
                   <Image size={20} className="text-ink-muted/50" />
                 </>
               ) : p.status === 'review' ? (
@@ -413,3 +417,5 @@ export default function PanelGrid({
     </div>
   )
 }
+
+export default memo(PanelGrid)

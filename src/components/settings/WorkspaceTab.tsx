@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import type { ReactNode } from 'react'
 import { PenLine, MessageSquare, Layers } from '../../icons'
 import { usePreferences, useResolvedPlatformMode } from '../../context/PreferencesContext'
@@ -79,7 +80,7 @@ function ToggleRow({
   )
 }
 
-export default function WorkspaceTab() {
+function WorkspaceTab() {
   const { preferences, updatePreferences } = usePreferences()
   const resolvedPlatformMode = useResolvedPlatformMode()
 
@@ -239,3 +240,5 @@ export default function WorkspaceTab() {
     </section>
   )
 }
+
+export default memo(WorkspaceTab)

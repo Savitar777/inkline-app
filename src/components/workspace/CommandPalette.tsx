@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { memo, startTransition, useDeferredValue, useEffect, useMemo, useState } from 'react'
 import { useResolvedPlatformMode } from '../../context/PreferencesContext'
 import { searchProject } from '../../domain/search'
 import { formatShortcut, type ShortcutToken } from '../../domain/platform'
@@ -32,7 +32,7 @@ function resultIcon(result: ProjectSearchResult) {
   return PenLine
 }
 
-export default function CommandPalette() {
+function CommandPalette() {
   const platformMode = useResolvedPlatformMode()
   const {
     closeCommandPalette,
@@ -371,3 +371,5 @@ export default function CommandPalette() {
     </div>
   )
 }
+
+export default memo(CommandPalette)

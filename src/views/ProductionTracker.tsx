@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import { useProject } from '../context/ProjectContext'
 import { getEpisodeProductionSummaries, getPageHeatmap, getRoleWorkload } from '../domain/productionSelectors'
 import { STATUS_BG_CLASSES, STATUS_LABELS, ALL_PANEL_STATUSES } from '../domain/statusColors'
@@ -9,7 +9,7 @@ import type { ProductionRole } from '../types'
 
 type TrackerTab = 'dashboard' | 'heatmap' | 'workload'
 
-export default function ProductionTracker() {
+function ProductionTracker() {
   const { project } = useProject()
   const [tab, setTab] = useState<TrackerTab>('dashboard')
   const [selectedEpisodeId, setSelectedEpisodeId] = useState<string | null>(null)
@@ -154,3 +154,5 @@ export default function ProductionTracker() {
     </div>
   )
 }
+
+export default memo(ProductionTracker)

@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react'
+import { memo, useRef, useEffect, useState } from 'react'
 import {
   Download,
   ChevronDown,
@@ -21,7 +21,7 @@ interface ExportOptionsProps {
   onExport: (type: string) => void
 }
 
-export default function ExportOptions({ exporting, onExport }: ExportOptionsProps) {
+function ExportOptions({ exporting, onExport }: ExportOptionsProps) {
   const [exportOpen, setExportOpen] = useState(false)
   const exportDropdownRef = useRef<HTMLDivElement>(null)
 
@@ -70,3 +70,5 @@ export default function ExportOptions({ exporting, onExport }: ExportOptionsProp
     </div>
   )
 }
+
+export default memo(ExportOptions)

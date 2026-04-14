@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from 'react'
+import { memo, useState, useCallback, useRef, useEffect } from 'react'
 import type { ContentBlock } from '../types'
 
 /* ─── Types ─── */
@@ -48,7 +48,7 @@ function bubbleClasses(type: ContentBlock['type'], font: BubbleFont): string {
 
 /* ─── Component ─── */
 
-export default function LetteringOverlay({ bubbles, onChange, scale, font, containerRef }: Props) {
+function LetteringOverlay({ bubbles, onChange, scale, font, containerRef }: Props) {
   const [dragging, setDragging] = useState<string | null>(null)
   const dragOffset = useRef({ dx: 0, dy: 0 })
 
@@ -157,3 +157,5 @@ export default function LetteringOverlay({ bubbles, onChange, scale, font, conta
     </>
   )
 }
+
+export default memo(LetteringOverlay)

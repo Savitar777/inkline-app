@@ -1,3 +1,4 @@
+import { memo } from 'react'
 import { AlertCircle } from '../../icons'
 
 interface ConfirmDialogProps {
@@ -9,7 +10,7 @@ interface ConfirmDialogProps {
   onCancel: () => void
 }
 
-export default function ConfirmDialog({
+function ConfirmDialog({
   open,
   title,
   message,
@@ -58,3 +59,5 @@ export default function ConfirmDialog({
     </div>
   )
 }
+
+export default memo(ConfirmDialog)

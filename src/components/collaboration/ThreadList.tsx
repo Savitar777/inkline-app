@@ -1,4 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
+import { memo } from 'react'
 import { Send, CheckCircle2, Clock, Palette } from '../../icons'
 import type { Thread } from '../../types'
 
@@ -26,7 +27,7 @@ interface ThreadListProps {
   onSelectThread: (threadId: string) => void
 }
 
-export default function ThreadList({
+function ThreadList({
   episodeThreads,
   resolvedActiveThread,
   unreadCounts,
@@ -99,3 +100,5 @@ export default function ThreadList({
     </>
   )
 }
+
+export default memo(ThreadList)

@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { memo, useEffect, useMemo } from 'react'
 import { X, ArrowRight } from '../icons'
 import { CONTEXTUAL_TIPS } from '../data/tutorials/tips'
 import { useTutorial } from '../context/TutorialContext'
@@ -8,7 +8,7 @@ interface ContextualTipBannerProps {
   onNavigateToModule?: (moduleId: string) => void
 }
 
-export default function ContextualTipBanner({ view, onNavigateToModule }: ContextualTipBannerProps) {
+function ContextualTipBanner({ view, onNavigateToModule }: ContextualTipBannerProps) {
   const { isTipVisible, dismissTip, markViewVisited } = useTutorial()
 
   // Mark view as visited after a short delay (so first-use tips show once)
@@ -52,3 +52,5 @@ export default function ContextualTipBanner({ view, onNavigateToModule }: Contex
     </div>
   )
 }
+
+export default memo(ContextualTipBanner)

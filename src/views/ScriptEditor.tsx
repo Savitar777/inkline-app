@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback, useMemo } from 'react'
+import { memo, useState, useRef, useEffect, useCallback, useMemo } from 'react'
 import { useVirtualizer } from '@tanstack/react-virtual'
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core'
 import { SortableContext, sortableKeyboardCoordinates, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
@@ -307,7 +307,7 @@ interface Props {
   onGoToCollab?: () => void
 }
 
-export default function ScriptEditor({ onGoToCollab }: Props = {}) {
+function ScriptEditor({ onGoToCollab }: Props = {}) {
   const {
     project, activeEpisodeId, setActiveEpisodeId,
     addEpisode, updateEpisode, deleteEpisode,
@@ -705,3 +705,5 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
     </div>
   )
 }
+
+export default memo(ScriptEditor)

@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { memo, useState } from 'react'
 import { AlertCircle, Check } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import ProfileAvatar from '../ProfileAvatar'
@@ -10,7 +10,7 @@ interface ProfileTabProps {
   setStatus: (status: { tone: 'success' | 'error'; message: string } | null) => void
 }
 
-export default function ProfileTab({ status, setStatus }: ProfileTabProps) {
+function ProfileTab({ status, setStatus }: ProfileTabProps) {
   const { profile, updateProfile } = useAuth()
   const [nameDraft, setNameDraft] = useState(profile?.name ?? '')
   const [avatarDraft, setAvatarDraft] = useState(profile?.avatar_url ?? '')
@@ -186,3 +186,5 @@ export default function ProfileTab({ status, setStatus }: ProfileTabProps) {
     </section>
   )
 }
+
+export default memo(ProfileTab)

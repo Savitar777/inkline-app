@@ -104,10 +104,9 @@ function handleError(context: string, error: unknown): void {
 /* ─── Project ─── */
 
 export async function fetchProject(projectId: string): Promise<Project | null> {
-  // Single nested query — replaces the previous N+1 approach
   const { data: proj, error: projErr } = await supabase
     .from('projects')
-    .select('*')
+    .select('id, title, format, owner_id')
     .eq('id', projectId)
     .single()
 
@@ -212,11 +211,13 @@ export async function listProjects(userId: string) {
       .from('projects')
       .select('id, title, format, created_at')
       .eq('owner_id', userId)
-      .order('created_at', { ascending: false }),
+      .order('created_at', { ascending: false })
+      .limit(50),
     supabase
       .from('project_members')
       .select('project:projects(id, title, format, created_at)')
-      .eq('user_id', userId),
+      .eq('user_id', userId)
+      .limit(50),
   ])
 
   const ownedList = owned ?? []
@@ -605,6 +606,7 @@ export async function listAllProjects() {
     .from('projects')
     .select('id, title, format, created_at, owner:users!projects_owner_id_fkey(id, name, email)')
     .order('created_at', { ascending: false })
+    .limit(100)
   if (error) { handleError('listAllProjects', error); return [] }
   return data ?? []
 }
@@ -614,6 +616,7 @@ export async function listAllUsers() {
     .from('users')
     .select('id, email, name, role, avatar_url, created_at')
     .order('created_at', { ascending: false })
+    .limit(100)
   if (error) { handleError('listAllUsers', error); return [] }
   return data ?? []
 }

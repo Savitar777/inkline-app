@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { memo, useState, useMemo } from 'react'
 import { X, Download, FileDown, Image, History, Check, AlertCircle } from '../../icons'
 import { EXPORT_PRESETS, getExportHistory } from '../../services/exportService'
 import { runPreflight } from '../../services/preflightService'
@@ -51,7 +51,7 @@ function formatTime(iso: string): string {
   }
 }
 
-export default function ExportScopeDialog({ pages, episode, format, colorProfile, exporting, onExport, onClose }: ExportScopeDialogProps) {
+function ExportScopeDialog({ pages, episode, format, colorProfile, exporting, onExport, onClose }: ExportScopeDialogProps) {
   const [mode, setMode] = useState<DialogMode>('export')
   const [outputFormat, setOutputFormat] = useState<ExportOutputFormat>('pdf')
   const [scope, setScope] = useState<ExportScope>('episode')
@@ -388,3 +388,5 @@ export default function ExportScopeDialog({ pages, episode, format, colorProfile
     </div>
   )
 }
+
+export default memo(ExportScopeDialog)

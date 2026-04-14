@@ -149,6 +149,9 @@ create index idx_threads_episode   on threads         using btree (episode_id);
 create index idx_messages_thread   on messages        using btree (thread_id);
 create index idx_messages_sender   on messages        using btree (sender_id);
 create index idx_pa_panel          on panel_assets    using btree (panel_id);
+create index idx_threads_created   on threads         using btree (created_at);
+create index idx_messages_created  on messages        using btree (created_at);
+create index idx_pa_panel_version  on panel_assets    using btree (panel_id, version);
 
 -- ═══════════════════════════════════════════════════════════════
 -- 4. ENABLE ROW LEVEL SECURITY

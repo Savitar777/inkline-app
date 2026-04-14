@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
+import { memo, useEffect, useMemo, useRef, useState, type DragEvent } from 'react'
 import {
   ChevronRight,
   MessageSquare,
@@ -60,7 +60,7 @@ function applyThreadMessages(
 
 /* ─── Component ─── */
 
-export default function Collaboration() {
+function Collaboration() {
   const { project, activeEpisodeId, updatePanel, updateThread, addMessage: addMessageToProject } = useProject()
   const { user, profile } = useAuth()
   const { activeThreadId, setActiveThreadId } = useWorkspace()
@@ -461,3 +461,5 @@ export default function Collaboration() {
     </div>
   )
 }
+
+export default memo(Collaboration)

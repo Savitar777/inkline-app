@@ -1,4 +1,4 @@
-import { useRef } from 'react'
+import { memo, useRef } from 'react'
 import { Send, Paperclip, Image } from '../../icons'
 
 interface MessageInputProps {
@@ -12,7 +12,7 @@ interface MessageInputProps {
   onBroadcastTyping: () => void
 }
 
-export default function MessageInput({
+function MessageInput({
   inputText,
   sending,
   showUpload,
@@ -77,3 +77,5 @@ export default function MessageInput({
     </div>
   )
 }
+
+export default memo(MessageInput)

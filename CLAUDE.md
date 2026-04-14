@@ -66,8 +66,6 @@ App
 
 ## Current Status
 
-MVP complete. Phases 1–5 complete. Phase 2 (Enrichment & Pre-Production) is in progress — see `PLAN.md` for detailed status.
+MVP complete. Phases 1–5 and Phase 2 enrichment complete. Phase 3 (Performance, Optimization & Polish) complete.
 
-Sub-phases done: **2a** (Story Bible + Character Bible), **2b** (Script Editor improvements), **2c** (Review & Collaboration improvements)
-
-Sub-phases pending: **2d** (Export & Validation), **2e** (Production Tracker), **2f** (Tutorial & Learning)
+Phase 3 sub-phases: **3a** (React perf — context split, React.memo rollout), **3b** (Supabase optimization — field-limiting, pagination, realtime panel assets, localStorage debounce, session refresh), **3c** (Mobile UX — safe-area, image lazy loading, animation fix), **3d** (Build/deploy — terser, vercel.json, PWA manifest, meta tags), **3e** (Final verification)

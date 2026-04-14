@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { memo, useState, useCallback } from 'react'
 import { X, Check, ChevronRight, FileText, BookOpen } from '../icons'
 import FileUploadZone from './FileUploadZone'
 import { processDocument } from '../services/documentProcessorService'
@@ -15,7 +15,7 @@ interface ScriptImportWizardProps {
 
 type Step = 1 | 2 | 3 | 4
 
-export default function ScriptImportWizard({ projectId, onClose }: ScriptImportWizardProps) {
+function ScriptImportWizard({ projectId, onClose }: ScriptImportWizardProps) {
   const { project } = useProjectDocument()
   const { profile } = useAuth()
   const { showToast } = useToast()
@@ -308,3 +308,5 @@ export default function ScriptImportWizard({ projectId, onClose }: ScriptImportW
     </div>
   )
 }
+
+export default memo(ScriptImportWizard)

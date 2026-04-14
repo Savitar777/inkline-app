@@ -1,0 +1,16 @@
+{
+  "name": "Inkline",
+  "short_name": "Inkline",
+  "description": "Collaborative comic and manga workspace for writer-artist teams",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0D0D0D",
+  "theme_color": "#0D0D0D",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ]
+}

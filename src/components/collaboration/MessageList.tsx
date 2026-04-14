@@ -1,4 +1,4 @@
-import { useRef, useEffect } from 'react'
+import { memo, useRef, useEffect } from 'react'
 import { Image } from '../../icons'
 import type { Message } from '../../types'
 
@@ -13,7 +13,7 @@ interface MessageListProps {
   resolvedActiveThread: string
 }
 
-export default function MessageList({ messages, liveMessagesByThread, resolvedActiveThread }: MessageListProps) {
+function MessageList({ messages, liveMessagesByThread, resolvedActiveThread }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -46,7 +46,7 @@ export default function MessageList({ messages, liveMessagesByThread, resolvedAc
             {msg.image && (
               <div className="mt-2 rounded-lg border border-ink-border bg-ink-panel overflow-hidden max-w-md">
                 {isUrl(msg.imageLabel) ? (
-                  <img src={msg.imageLabel} alt="Draft artwork" className="w-full max-h-64 object-contain bg-ink-panel" />
+                  <img src={msg.imageLabel} alt="Draft artwork" loading="lazy" className="w-full max-h-64 object-contain bg-ink-panel" />
                 ) : (
                   <div className="h-48 bg-gradient-to-br from-ink-muted/30 to-ink-panel flex items-center justify-center relative">
                     <div className="absolute inset-0 opacity-10" style={{
@@ -74,3 +74,5 @@ export default function MessageList({ messages, liveMessagesByThread, resolvedAc
     </div>
   )
 }
+
+export default memo(MessageList)

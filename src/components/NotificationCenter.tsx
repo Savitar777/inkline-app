@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { memo, useEffect, useRef } from 'react'
 import { useNotifications, type NotificationType } from '../context/NotificationContext'
 import { X, Check, MessageCircle, ArrowRight, AlertCircle } from '../icons'
 
@@ -33,7 +33,7 @@ interface Props {
   onClose: () => void
 }
 
-export default function NotificationCenter({ open, onClose }: Props) {
+function NotificationCenter({ open, onClose }: Props) {
   const { notifications, markRead, markAllRead, clearAll } = useNotifications()
   const panelRef = useRef<HTMLDivElement>(null)
 
@@ -126,3 +126,5 @@ export default function NotificationCenter({ open, onClose }: Props) {
     </div>
   )
 }
+
+export default memo(NotificationCenter)
