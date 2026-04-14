@@ -8,7 +8,7 @@ import {
   type ImportProjectResult,
 } from './ProjectDocumentContext'
 import { useWorkspace } from './WorkspaceContext'
-import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, StoryBible, Thread } from '../types'
+import type { Character, ContentBlock, Episode, Message, Page, Panel, ProductionRole, Project, StoryBible, Thread } from '../types'
 
 interface ProjectStateType {
   project: Project
@@ -47,6 +47,8 @@ interface ProjectActionsType {
   addThread: (thread: Thread) => void
   updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
   addMessage: (threadId: string, message: Message) => void
+  setEpisodeDeadline: (episodeId: string, deadline: string | undefined, assignedRole?: ProductionRole) => void
+  setPageDeadline: (episodeId: string, pageId: string, deadline: string | undefined, assignedRole?: ProductionRole) => void
 }
 
 type ProjectContextType = ProjectStateType & ProjectActionsType

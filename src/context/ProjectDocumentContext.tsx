@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { defaultProject } from '../data/mockData'
 import * as svc from '../services/projectService'
 import { parseProjectDocument, serializeProjectDocument, type ProjectImportError } from '../domain/validation'
-import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, StoryBible, Thread } from '../types'
+import type { Character, ContentBlock, Episode, Message, Page, Panel, ProductionRole, Project, StoryBible, Thread } from '../types'
 import type { ScriptImportRecord } from '../types/files'
 import { applyImport as applyScriptImportToProject } from '../services/scriptImportService'
 import { useRealtimePanelAssets } from '../hooks/useRealtimePanelAssets'
@@ -53,6 +53,8 @@ interface ProjectDocumentActionsType {
   addMessage: (threadId: string, message: Message) => void
   updateStoryBible: (bible: StoryBible) => void
   applyScriptImport: (record: ScriptImportRecord, strategy: 'replace' | 'append' | 'merge') => void
+  setEpisodeDeadline: (episodeId: string, deadline: string | undefined, assignedRole?: ProductionRole) => void
+  setPageDeadline: (episodeId: string, pageId: string, deadline: string | undefined, assignedRole?: ProductionRole) => void
 }
 
 type ProjectDocumentContextType = ProjectDocumentStateType & ProjectDocumentActionsType
@@ -630,6 +632,35 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     setProject(current => applyScriptImportToProject(record, strategy, current))
   }, [])
 
+  const setEpisodeDeadline = useCallback((episodeId: string, deadline: string | undefined, assignedRole?: ProductionRole) => {
+    setProject(prev => ({
+      ...prev,
+      episodes: prev.episodes.map(ep =>
+        ep.id === episodeId
+          ? { ...ep, deadline, assignedRole: assignedRole ?? ep.assignedRole }
+          : ep
+      ),
+    }))
+  }, [setProject])
+
+  const setPageDeadline = useCallback((episodeId: string, pageId: string, deadline: string | undefined, assignedRole?: ProductionRole) => {
+    setProject(prev => ({
+      ...prev,
+      episodes: prev.episodes.map(ep =>
+        ep.id === episodeId
+          ? {
+              ...ep,
+              pages: ep.pages.map(pg =>
+                pg.id === pageId
+                  ? { ...pg, deadline, assignedRole: assignedRole ?? pg.assignedRole }
+                  : pg
+              ),
+            }
+          : ep
+      ),
+    }))
+  }, [setProject])
+
   const stateValue = useMemo<ProjectDocumentStateType>(() => ({
     project,
     loading,
@@ -666,6 +697,8 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     updateThread,
     addMessage,
     applyScriptImport,
+    setEpisodeDeadline,
+    setPageDeadline,
   }), [
     undo,
     redo,
@@ -695,6 +728,8 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     updateThread,
     addMessage,
     applyScriptImport,
+    setEpisodeDeadline,
+    setPageDeadline,
   ])
 
   return (
