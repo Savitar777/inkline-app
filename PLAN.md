@@ -4,7 +4,7 @@
 
 Inkline is a fully functional collaborative comic/manga/webtoon workspace for writer + artist collaboration (like Bakuman). Built with React 19 + TypeScript + Tailwind CSS + Vite 8. Supabase backend with offline localStorage fallback. All 4 roles supported: writer, artist, letterer, colorist.
 
-**All major phases are complete.** The app is production-ready with:
+**All phases through Phase 3 are complete.** The app is optimized and production-ready with:
 - Full script editing (episodes, pages, panels, content blocks, characters)
 - Real-time collaboration with threads, messaging, and file uploads
 - Compile & export in 4 formats (Webtoon, Manga, Comic, Manhwa)
@@ -83,15 +83,54 @@ Inkline is a fully functional collaborative comic/manga/webtoon workspace for wr
 ## Known Limitations & Future Work
 
 - ~~**E3: Virtualized panel list**~~ — Done. `@tanstack/react-virtual` integrated.
-- **Rate limiting is client-side only** — A determined attacker could bypass. For multi-tenant deployment, proxy writes through Supabase Edge Functions
+- **Rate limiting is client-side only** — Acceptable for personal tool. For multi-tenant, proxy writes through Supabase Edge Functions
 - **Email notifications** — Currently in-app only. Add Resend/SendGrid for email alerts on submissions, approvals, etc.
 - ~~**Drag-to-reorder**~~ — Done. `@dnd-kit` integrated for page and panel reordering.
-- **Image optimization** — Consider adding thumbnails for panel grid to reduce bandwidth
+- ~~**Image optimization**~~ — Done. `loading="lazy"` on all panel artwork images; realtime panel asset sync via Supabase Realtime.
 - **Phase 6 (Monetization)** — Deleted from scope. This is a personal tool, not a SaaS product
+- **Asset tagging/search** — Reference files are browseable but not searchable by tag
+- **Episode/page templates** — No reusable layout system yet
 
 ---
 
-## Phase 2: Enrichment & Pre-Production (In Progress)
+## Phase 3: Performance, Optimization & Polish (COMPLETE)
+
+### 3a: React Performance & Memoization (COMPLETE)
+- [x] Split ProjectDocumentContext → ProjectStateContext + ProjectActionsContext (stable actions, reactive state)
+- [x] Split ProjectContext → ProjectStateContext + ProjectActionsContext with backward-compat `useProject()` hook
+- [x] React.memo on 48 components (up from 6)
+- [x] Extract inline style constants (PanelGrid gold gradient)
+- [x] Remove pointless useMemo in ScriptPreviewModal
+- [x] Fix exportProject to use projectRef instead of closing over project state
+
+### 3b: Supabase Data & Sync (COMPLETE)
+- [x] Field-limited fetchProject select (`id, title, format, owner_id` instead of `*`)
+- [x] Pagination on listProjects (limit 50), listAllProjects/listAllUsers (limit 100)
+- [x] Realtime panel_assets subscription (`useRealtimePanelAssets` hook) — live artwork sync
+- [x] localStorage debounce increased 250ms → 2000ms with flush-on-blur and flush-on-close
+- [x] Proactive session refresh every 45 minutes in AuthContext
+- [x] Missing DB indexes: threads.created_at, messages.created_at, panel_assets(panel_id, version)
+
+### 3c: Mobile UX Polish (COMPLETE)
+- [x] Safe-area-inset bottom padding on mobile tab bar (notch devices)
+- [x] Image lazy loading on all panel artwork images
+- [x] MobileDrawer animation classes moved from raw CSS keyframes to Tailwind config
+
+### 3d: Build & Deploy Prep (COMPLETE)
+- [x] Vite terser minification with drop_console + drop_debugger
+- [x] Source maps disabled in production
+- [x] vercel.json — immutable cache headers for assets, SPA rewrites
+- [x] index.html — description meta, theme-color, Apple web app tags, DNS prefetch, manifest link
+- [x] PWA manifest (public/manifest.json)
+
+### 3e: Code Quality & Final Verify (COMPLETE)
+- [x] TypeScript: zero errors
+- [x] ESLint: 7 pre-existing errors (none from Phase 3)
+- [x] Build: passes cleanly
+
+---
+
+## Phase 2: Enrichment & Pre-Production (COMPLETE)
 
 ### 2a: Story Bible + Character Bible (COMPLETE)
 - [x] Story Bible view with 4 sub-tabs: Arcs, Locations, World Rules, Timeline

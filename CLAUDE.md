@@ -51,18 +51,26 @@ App
 - **Theming:** CSS custom properties `--ink-*` on `:root`. Always use `ink-*` Tailwind classes — never hardcode colors or raw hex values
 - **Responsive:** `useBreakpoint()` hook returns `'mobile' | 'tablet' | 'desktop'`. Sidebars use `MobileDrawer` on mobile
 - **Notifications:** `addNotification()` from `useNotifications()` for workflow events
-- **Offline:** When `VITE_SUPABASE_URL` is unset, all service calls are no-ops; state lives in localStorage under `inkline-project-document`
+- **Offline:** When `VITE_SUPABASE_URL` is unset, all service calls are no-ops; state lives in localStorage under `inkline-project`
+- **Context split:** `ProjectDocumentContext` and `ProjectContext` each split into State + Actions contexts. Use `useProject()` for backward compat, or `useProjectState()` / `useProjectActions()` for fine-grained subscriptions. Actions context is referentially stable (never triggers re-renders).
+- **Memoization:** All 48 components wrapped with `React.memo`. New components should follow this pattern.
+- **Realtime:** `useRealtimePanelAssets` hook subscribes to panel_assets INSERT events for live artwork sync
 
 ### Key Files
 - `src/types/index.ts` — All domain types
 - `src/types/files.ts` — File pipeline types and config constants
-- `src/services/projectService.ts` — All Supabase calls + rate limiters
+- `src/context/ProjectDocumentContext.tsx` — Split State + Actions contexts; undo/redo; localStorage persistence
+- `src/context/ProjectContext.tsx` — Consumer-facing split contexts with `useProject()` / `useProjectState()` / `useProjectActions()`
+- `src/services/projectService.ts` — All Supabase calls + rate limiters (field-limited selects, paginated lists)
 - `src/services/fileValidationService.ts` — MIME, magic bytes, SVG sanitization, duplicate detection
 - `src/services/fileStorageService.ts` — StorageAdapter factory (Supabase + offline)
 - `src/services/exportService.ts` — PDF/PNG/WEBP/ZIP export with presets and history
+- `src/hooks/useRealtimePanelAssets.ts` — Realtime panel artwork sync
+- `src/hooks/useBreakpoint.ts` — Responsive breakpoint hook (useSyncExternalStore)
 - `src/domain/selectors.ts` — Pure derived-data functions
 - `src/domain/validation.ts` — Project JSON import/export with `__schemaVersion` + migration chain
 - `src/lib/assemblyEngine.ts` — Panel assembly logic for all 4 formats
+- `vercel.json` — Vercel deployment config (cache headers, SPA rewrites)
 
 ## Current Status
 

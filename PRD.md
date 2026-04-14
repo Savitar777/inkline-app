@@ -407,14 +407,14 @@ Inkline already has a solid foundation that should not be rebuilt. The following
 
 | Gap | Impact | Recommended Fix |
 |---|---|---|
-| No virtualized rendering for large panel counts | Performance degrades with 100+ panels in an episode | Integrate `@tanstack/react-virtual` (already in dependencies) |
-| No drag-to-reorder for panels or pages | Writers cannot rearrange story structure visually | Add drag-and-drop with `order` field updates |
-| ExportScopeDialog not wired as primary export UI | The more capable export dialog exists but is not the default | Wire ExportScopeDialog into CompileExport as the primary export flow |
+| ~~No virtualized rendering for large panel counts~~ | ~~Performance degrades with 100+ panels~~ | ~~DONE — @tanstack/react-virtual integrated~~ |
+| ~~No drag-to-reorder for panels or pages~~ | ~~Writers cannot rearrange~~ | ~~DONE — @dnd-kit integrated~~ |
+| ~~ExportScopeDialog not wired as primary export UI~~ | ~~Not the default~~ | ~~DONE — wired as primary export flow~~ |
 | Client-side-only rate limiting | Rate limits can be bypassed by a determined user | Acceptable for a personal tool; server-side limits only matter at multi-tenant scale |
 | No email notifications | Team members must check the app for updates | Add optional email notifications via Resend or SendGrid |
-| No pre-production tools (Story Bible, Character Bible) | Writers plan stories outside the app | Build as Phase 2 priority |
-| No production pipeline visibility | No dashboard showing where work is across the pipeline | Build Production Tracker as Phase 2 |
-| No tutorial or learning system | Users must already understand comic/webtoon concepts | Build Tutorial Center as Phase 2 |
+| ~~No pre-production tools (Story Bible, Character Bible)~~ | ~~Writers plan outside~~ | ~~DONE — Phase 2a~~ |
+| ~~No production pipeline visibility~~ | ~~No dashboard~~ | ~~DONE — Phase 2e~~ |
+| ~~No tutorial or learning system~~ | ~~Users must already understand concepts~~ | ~~DONE — Phase 2f~~ |
 | No asset tagging or search | Reference files and assets are browseable but not searchable by tag | Add tagging system to Asset Library |
 | No template/reusable layout system | Every episode starts from scratch | Add templates for recurring page/panel structures |
 
@@ -3083,9 +3083,20 @@ Phase 2 focuses on three pillars: pre-production planning, production visibility
 | Role-based workload view | Low | Answer "what's waiting for me?" per role |
 | Production milestones | Low | Simple deadline tracking |
 
-## 19.3 Phase 3: Advanced Workflows and Polish (Later)
+## 19.3 Phase 3: Performance, Optimization & Polish (COMPLETE)
 
-Phase 3 adds depth and sophistication to the systems built in Phase 2.
+Phase 3 hardened performance, Supabase sync, mobile UX, and build configuration before Vercel deployment.
+
+**Completed:**
+- Context split (ProjectDocumentContext → State + Actions) and React.memo rollout on 48 components
+- Supabase query optimization (field-limiting, pagination, realtime panel assets, session refresh)
+- Mobile UX polish (safe-area-inset, image lazy loading, animation fixes)
+- Build config (terser minification, vercel.json, PWA manifest, meta tags)
+- 3 new DB indexes for query performance
+
+## 19.4 Phase 4: Advanced Workflows and Templates (Later)
+
+Phase 4 adds depth and sophistication to the systems built in Phase 2.
 
 ### Tutorial Content Expansion
 - Full 50+ module tutorial library covering all content categories from Section 8.2

@@ -144,6 +144,18 @@ All heavy libraries (mammoth, pdfjs-dist, marked, html2canvas-pro, jsPDF, JSZip)
 - `ink-fade-in` on list items, `ink-stage-enter` on modals and view transitions
 - Skeleton loading states
 
+### Performance & Optimization (Phase 3)
+- **Context split** — `ProjectDocumentContext` split into State + Actions contexts to minimize re-renders; actions context is referentially stable
+- **React.memo** on 48 components (up from 6) with shallow prop comparison
+- **Supabase query optimization** — field-limited selects, pagination on list endpoints (50/100 limits)
+- **Realtime panel assets** — collaborators see new artwork uploads in real-time via Supabase Realtime subscription
+- **localStorage debounce** — increased from 250ms to 2s with flush-on-blur/close for large project performance
+- **Proactive session refresh** — 45-minute interval prevents token expiry on long sessions
+- **Image lazy loading** — `loading="lazy"` on all panel artwork images
+- **Terser minification** — production builds strip console logs and debugger statements
+- **Vercel deployment config** — immutable cache headers for hashed assets, SPA rewrites
+- **PWA manifest** — standalone app capability with theme colors
+
 ### Project Format & Schema Versioning
 - Projects serialize to JSON with a `__schemaVersion` field
 - Migration chain in `src/domain/migrations.ts` upgrades old documents on import
@@ -157,6 +169,8 @@ All heavy libraries (mammoth, pdfjs-dist, marked, html2canvas-pro, jsPDF, JSZip)
 - **Supabase** — Auth, Postgres, Realtime, Storage
 - **@dnd-kit** — drag-and-drop for page and panel reordering (`@dnd-kit/core`, `@dnd-kit/sortable`, `@dnd-kit/utilities`)
 - **@tanstack/react-virtual** — virtualized list rendering for large episode/page lists
+- **Terser** — production minification with console stripping
+- **Vercel** — deployment target with cache headers and SPA rewrites
 - Custom SVG icon library in `src/icons.tsx` — no external icon packages
 - CSS custom properties (`--ink-*`) mapped to Tailwind utility classes
 
@@ -191,14 +205,19 @@ src/
 │   └── settings/
 │       └── LearningTab.tsx         # Tutorial progress, tips toggle, difficulty
 ├── context/
+│   ├── ProjectDocumentContext.tsx  # Split: ProjectStateContext + ProjectActionsContext
+│   ├── ProjectContext.tsx          # Split: ProjectStateContext + ProjectActionsContext (consumer layer)
 │   ├── TutorialContext.tsx         # Tutorial progress, tips, difficulty state
-│   └── ...                         # Auth, Project, Workspace, etc.
+│   └── ...                         # Auth, Workspace, Toast, Notification, Preferences
 ├── data/
 │   └── tutorials/
 │       ├── types.ts                # TutorialModule, GlossaryEntry, ContextualTip types
 │       ├── modules.ts              # Learning module content
 │       ├── glossary.ts             # Comic/manga terminology
 │       └── tips.ts                 # Contextual tip definitions
+├── hooks/
+│   ├── useBreakpoint.ts            # Responsive breakpoint hook (useSyncExternalStore)
+│   └── useRealtimePanelAssets.ts   # Realtime panel artwork sync via Supabase
 ├── domain/
 │   ├── validation.ts               # Project JSON import/export
 │   ├── migrations.ts               # Schema migration chain
@@ -234,6 +253,9 @@ src/
     └── ProjectDashboard.tsx
 supabase/
     schema.sql                      # Tables, RLS, triggers, functions
+public/
+    manifest.json                   # PWA manifest
+vercel.json                         # Vercel deployment config (cache, rewrites)
 ```
 
 ---
@@ -293,5 +315,7 @@ Row-Level Security is enabled on all tables. Access is gated by `is_project_memb
 
 ## Known Gaps
 
-- Rate limiting is client-side only — a determined attacker could bypass; proxy writes through Supabase Edge Functions for multi-tenant hardening
+- Rate limiting is client-side only — acceptable for a personal tool; proxy writes through Supabase Edge Functions for multi-tenant hardening
 - Email notifications — in-app only, no Resend/SendGrid integration
+- No asset tagging or search — reference files are browseable but not searchable by tag
+- No episode/page templates — every episode starts from scratch
