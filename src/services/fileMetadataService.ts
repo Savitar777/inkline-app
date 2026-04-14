@@ -146,6 +146,75 @@ export async function deleteFileRecord(fileId: string, projectId?: string): Prom
   if (error) handleError('deleteFileRecord', error)
 }
 
+export async function updateFileTags(
+  fileId: string,
+  tags: string[],
+  autoTags: string[],
+  projectId?: string,
+): Promise<void> {
+  const allTags = [...new Set([...tags, ...autoTags])]
+
+  if (!isSupabaseConfigured) {
+    if (!projectId) return
+    const records = getOfflineRecords(projectId)
+    const idx = records.findIndex(r => r.id === fileId)
+    if (idx >= 0) {
+      records[idx].metadata = { ...records[idx].metadata, tags, autoTags }
+      setOfflineRecords(projectId, records)
+    }
+    return
+  }
+
+  const record = await getFileRecord(fileId)
+  if (!record) return
+
+  const updatedMetadata = { ...record.metadata, tags, autoTags }
+  const { error } = await supabase
+    .from('uploaded_files')
+    .update({
+      metadata: updatedMetadata as Record<string, unknown>,
+      tags: allTags,
+    })
+    .eq('id', fileId)
+
+  if (error) handleError('updateFileTags', error)
+}
+
+export async function searchProjectFiles(
+  projectId: string,
+  query: string,
+  filterTags: string[],
+): Promise<UploadedFile[]> {
+  if (!isSupabaseConfigured) {
+    const records = getOfflineRecords(projectId)
+    return records.filter(r => {
+      const allTags = [...(r.metadata.tags ?? []), ...(r.metadata.autoTags ?? [])]
+      const matchesQuery = !query || r.originalName.toLowerCase().includes(query.toLowerCase()) ||
+        allTags.some(t => t.toLowerCase().includes(query.toLowerCase()))
+      const matchesTags = filterTags.length === 0 || filterTags.every(ft => allTags.includes(ft))
+      return matchesQuery && matchesTags
+    })
+  }
+
+  let dbQuery = supabase
+    .from('uploaded_files')
+    .select('*')
+    .eq('project_id', projectId)
+    .order('created_at', { ascending: false })
+
+  if (filterTags.length > 0) {
+    dbQuery = dbQuery.contains('tags', filterTags)
+  }
+
+  if (query) {
+    dbQuery = dbQuery.ilike('original_name', `%${query}%`)
+  }
+
+  const { data, error } = await dbQuery
+  if (error) { handleError('searchProjectFiles', error); return [] }
+  return (data ?? []).map(mapRow)
+}
+
 /* ─── Helpers ─── */
 
 function bucketForCategory(category: FileCategory): string {
