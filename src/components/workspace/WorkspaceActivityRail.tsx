@@ -50,7 +50,7 @@ function WorkspaceActivityRail({ summary }: WorkspaceActivityRailProps) {
   const { setActiveView } = useWorkspace()
 
   return (
-    <section className="border-b border-ink-border bg-ink-black/40 px-6 py-3">
+    <section className="shrink-0 border-b border-ink-border bg-ink-black/40 px-6 py-3">
       <div className="grid gap-3 md:grid-cols-4">
         {cards.map(card => {
           const Icon = card.getIcon(summary)
