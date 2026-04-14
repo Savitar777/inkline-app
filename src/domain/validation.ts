@@ -1,4 +1,4 @@
-import type { ChangeRequest, Character, CharacterArc, CharacterRelationship, ContentBlock, Episode, Location, Message, Page, Panel, PanelRevision, PanelStatus, PanelType, Project, StoryArc, StoryArcStatus, StoryBible, Thread, TimelineEvent, WorldRule } from '../types'
+import type { ChangeRequest, Character, CharacterArc, CharacterRelationship, ContentBlock, Episode, Location, Message, Page, Panel, PanelRevision, PanelStatus, PanelType, ProductionRole, Project, StoryArc, StoryArcStatus, StoryBible, Thread, TimelineEvent, WorldRule } from '../types'
 import { CURRENT_SCHEMA_VERSION, migrateProjectDocument } from './migrations'
 
 type ImportErrorCode = 'invalid_json' | 'invalid_shape'
@@ -54,6 +54,10 @@ function isPanelStatus(value: string): value is PanelStatus {
 
 function isPanelType(value: string): value is PanelType {
   return ['establishing', 'action', 'dialogue', 'impact', 'transition'].includes(value)
+}
+
+function isProductionRole(value: string): value is ProductionRole {
+  return ['writer', 'artist', 'letterer', 'colorist'].includes(value)
 }
 
 function parseChangeRequest(value: unknown, index: number): ChangeRequest {
@@ -127,22 +131,32 @@ function parsePanel(value: unknown, index: number): Panel {
 
 function parsePage(value: unknown, index: number): Page {
   const page = asRecord(value, `pages[${index}]`)
+  const deadline = asString(page.deadline, `pages[${index}].deadline`, '') || undefined
+  const assignedRoleStr = asString(page.assignedRole, `pages[${index}].assignedRole`, '')
+  const assignedRole = assignedRoleStr && isProductionRole(assignedRoleStr) ? assignedRoleStr : undefined
   return {
     id: asString(page.id, `pages[${index}].id`),
     number: asNumber(page.number, `pages[${index}].number`),
     layoutNote: asString(page.layoutNote, `pages[${index}].layoutNote`),
     panels: asArray(page.panels, `pages[${index}].panels`, 20).map(parsePanel),
+    deadline,
+    assignedRole,
   }
 }
 
 function parseEpisode(value: unknown, index: number): Episode {
   const episode = asRecord(value, `episodes[${index}]`)
+  const deadline = asString(episode.deadline, `episodes[${index}].deadline`, '') || undefined
+  const assignedRoleStr = asString(episode.assignedRole, `episodes[${index}].assignedRole`, '')
+  const assignedRole = assignedRoleStr && isProductionRole(assignedRoleStr) ? assignedRoleStr : undefined
   return {
     id: asString(episode.id, `episodes[${index}].id`),
     number: asNumber(episode.number, `episodes[${index}].number`),
     title: asString(episode.title, `episodes[${index}].title`),
     brief: asString(episode.brief, `episodes[${index}].brief`, '', 5000),
     pages: asArray(episode.pages, `episodes[${index}].pages`, 100).map(parsePage),
+    deadline,
+    assignedRole,
   }
 }
 

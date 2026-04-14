@@ -1,6 +1,6 @@
 /* ─── Schema Migration Chain ─── */
 
-export const CURRENT_SCHEMA_VERSION = 2
+export const CURRENT_SCHEMA_VERSION = 3
 
 type MigrationFn = (raw: unknown) => unknown
 
@@ -19,6 +19,8 @@ const MIGRATIONS: MigrationFn[] = [
     }
     return doc
   },
+  // Migration 2 → 3: deadline/assignedRole on episodes/pages (no-op — fields are optional)
+  (raw) => raw,
 ]
 
 /**
