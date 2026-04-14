@@ -20,10 +20,11 @@ export interface ExportOptions {
 /* ─── Presets ─── */
 
 export const EXPORT_PRESETS: Record<ExportPresetId, Partial<ExportOptions>> = {
-  'webtoon-web':  { dpi: 72,  colorProfile: 'rgb',  outputFormat: 'zip' },
-  'manga-print':  { dpi: 300, colorProfile: 'rgb',  outputFormat: 'pdf' },
-  'comic-print':  { dpi: 300, colorProfile: 'cmyk', outputFormat: 'pdf' },
-  'manhwa-web':   { dpi: 72,  colorProfile: 'rgb',  outputFormat: 'zip' },
+  'webtoon-web':    { dpi: 72,  colorProfile: 'rgb',  outputFormat: 'zip' },
+  'manga-print':    { dpi: 300, colorProfile: 'rgb',  outputFormat: 'pdf' },
+  'comic-print':    { dpi: 300, colorProfile: 'cmyk', outputFormat: 'pdf' },
+  'manhwa-web':     { dpi: 72,  colorProfile: 'rgb',  outputFormat: 'zip' },
+  'webtoon-slice':  { dpi: 72,  colorProfile: 'rgb',  outputFormat: 'zip' },
 }
 
 /* ─── Export History ─── */
@@ -305,6 +306,54 @@ export async function exportSinglePNG(
     projectId: '',
     scope: options.scope ?? 'episode',
     outputFormat: 'png',
+    dpi: options.dpi,
+    status: 'complete',
+    completedAt: new Date().toISOString(),
+  })
+}
+
+/* ─── Webtoon Slice Export ─── */
+
+export async function exportWebtoonZIP(
+  containerEl: HTMLElement,
+  options: ExportOptions,
+): Promise<void> {
+  const [{ default: JSZip }, { saveAs }, { sliceWebtoonCanvas }] = await Promise.all([
+    import('jszip'),
+    import('file-saver'),
+    import('./webtoonSlicer'),
+  ])
+
+  const canvas = await captureElement(containerEl, options.dpi)
+  const slices = await sliceWebtoonCanvas(canvas)
+
+  const zip = new JSZip()
+  const folder = zip.folder(`${options.title} - ${options.episodeTitle} - Webtoon`)
+
+  slices.forEach((slice, i) => {
+    const name = `${options.title.toLowerCase().replace(/\s+/g, '-')}-${String(i + 1).padStart(3, '0')}.png`
+    folder?.file(name, slice.blob)
+  })
+
+  // Add manifest
+  folder?.file('manifest.json', JSON.stringify({
+    project: options.title,
+    episode: options.episodeTitle,
+    exportedAt: new Date().toISOString(),
+    format: 'webtoon-slice',
+    dpi: options.dpi,
+    slices: slices.length,
+    maxSliceHeight: 800,
+  }, null, 2))
+
+  const content = await zip.generateAsync({ type: 'blob' })
+  saveAs(content, `${options.title} - ${options.episodeTitle} - Webtoon.zip`)
+
+  recordExport({
+    projectId: '',
+    scope: options.scope ?? 'episode',
+    outputFormat: 'zip',
+    preset: 'webtoon-slice',
     dpi: options.dpi,
     status: 'complete',
     completedAt: new Date().toISOString(),

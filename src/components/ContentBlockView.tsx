@@ -1,19 +1,60 @@
-import { memo, useState } from 'react'
+import { memo, useState, useRef, useEffect } from 'react'
 import { MessageCircle, Quote, Volume2, Trash2, Check, X } from '../icons'
-import type { ContentBlock } from '../types'
+import type { Character, ContentBlock } from '../types'
+
+function CharacterPopover({ character }: { character: Character }) {
+  return (
+    <div className="absolute left-0 top-full mt-1 z-30 w-64 bg-ink-panel border border-ink-border rounded-lg shadow-xl p-3 space-y-2">
+      <div className="flex items-center gap-2">
+        <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: character.color }} />
+        <span className="text-xs font-mono font-medium text-ink-light">{character.name}</span>
+        {character.role && <span className="text-[9px] uppercase tracking-wider text-ink-muted font-sans">{character.role}</span>}
+      </div>
+      {character.desc && <p className="text-[11px] text-ink-text font-sans leading-relaxed">{character.desc}</p>}
+      {character.personality && (
+        <div>
+          <span className="text-[9px] uppercase tracking-wider text-ink-muted font-sans">Personality</span>
+          <p className="text-[11px] text-ink-text font-sans leading-relaxed">{character.personality}</p>
+        </div>
+      )}
+      {character.speechPatterns && (
+        <div>
+          <span className="text-[9px] uppercase tracking-wider text-ink-muted font-sans">Speech Patterns</span>
+          <p className="text-[11px] text-ink-text font-sans leading-relaxed">{character.speechPatterns}</p>
+        </div>
+      )}
+      {character.goals && (
+        <div>
+          <span className="text-[9px] uppercase tracking-wider text-ink-muted font-sans">Goals</span>
+          <p className="text-[11px] text-ink-text font-sans leading-relaxed">{character.goals}</p>
+        </div>
+      )}
+    </div>
+  )
+}
 
 interface Props {
   block: ContentBlock
   episodeId: string
   pageId: string
   panelId: string
+  characters?: Character[]
   onUpdate: (blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
   onDelete: (blockId: string) => void
 }
 
-export default memo(function ContentBlockView({ block, onUpdate, onDelete }: Props) {
+export default memo(function ContentBlockView({ block, characters, onUpdate, onDelete }: Props) {
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState({ character: block.character ?? '', parenthetical: block.parenthetical ?? '', text: block.text })
+  const [showPopover, setShowPopover] = useState(false)
+  const hoverTimeout = useRef<ReturnType<typeof setTimeout>>(null)
+  const popoverRef = useRef<HTMLSpanElement>(null)
+
+  const matchedCharacter = characters?.find(c => c.name.toLowerCase() === (block.character ?? '').toLowerCase())
+
+  useEffect(() => {
+    return () => { if (hoverTimeout.current) clearTimeout(hoverTimeout.current) }
+  }, [])
 
   const save = () => {
     onUpdate(block.id, {
@@ -92,7 +133,22 @@ export default memo(function ContentBlockView({ block, onUpdate, onDelete }: Pro
       >
         <MessageCircle size={12} className="text-tag-dialogue mt-1 shrink-0" />
         <div className="text-sm font-mono leading-relaxed">
-          <span className="text-tag-dialogue font-medium">{block.character || 'CHARACTER'}</span>
+          <span
+            ref={popoverRef}
+            className={`text-tag-dialogue font-medium relative ${matchedCharacter ? 'hover:underline decoration-dotted underline-offset-2' : ''}`}
+            onMouseEnter={() => {
+              if (!matchedCharacter) return
+              hoverTimeout.current = setTimeout(() => setShowPopover(true), 400)
+            }}
+            onMouseLeave={() => {
+              if (hoverTimeout.current) clearTimeout(hoverTimeout.current)
+              setShowPopover(false)
+            }}
+            onClick={e => { if (matchedCharacter && showPopover) e.stopPropagation() }}
+          >
+            {block.character || 'CHARACTER'}
+            {showPopover && matchedCharacter && <CharacterPopover character={matchedCharacter} />}
+          </span>
           {block.parenthetical && <span className="text-ink-text text-xs ml-1">({block.parenthetical})</span>}
           <span className="text-ink-light">: {block.text || <em className="text-ink-muted not-italic">empty</em>}</span>
         </div>

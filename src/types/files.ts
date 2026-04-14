@@ -159,8 +159,8 @@ export type DocumentImportResult =
 /* ─── Export ─── */
 
 export type ExportScope = 'episode' | 'page' | 'panel' | 'project'
-export type ExportOutputFormat = 'pdf' | 'png' | 'jpg' | 'webp' | 'zip' | 'json'
-export type ExportPresetId = 'webtoon-web' | 'manga-print' | 'comic-print' | 'manhwa-web'
+export type ExportOutputFormat = 'pdf' | 'png' | 'jpg' | 'webp' | 'zip' | 'json' | 'thumbnail'
+export type ExportPresetId = 'webtoon-web' | 'manga-print' | 'comic-print' | 'manhwa-web' | 'webtoon-slice'
 
 export interface ExportJob {
   id: string
@@ -177,6 +177,42 @@ export interface ExportJob {
   completedAt?: string
   outputUrl?: string
   errorMessage?: string
+}
+
+/* ─── Preflight Validation ─── */
+
+export type PreflightSeverity = 'error' | 'warning' | 'info'
+
+export interface PreflightIssue {
+  code: string
+  severity: PreflightSeverity
+  message: string
+  affectedIds?: string[]
+}
+
+export interface PreflightResult {
+  pass: boolean
+  issues: PreflightIssue[]
+  estimatedFileSizeMB: number
+}
+
+/* ─── Thumbnail Generation ─── */
+
+export type ThumbnailSize = '300x300' | '600x600' | '1200x630'
+
+export interface ThumbnailPreset {
+  id: ThumbnailSize
+  label: string
+  widthPx: number
+  heightPx: number
+}
+
+/* ─── Webtoon Slicing ─── */
+
+export interface WebtoonSlice {
+  index: number
+  blob: Blob
+  heightPx: number
 }
 
 /* ─── Storage Adapter ─── */

@@ -7,7 +7,9 @@ export interface EpisodeStats {
   pages: number
   panels: number
   dialogue: number
+  captions: number
   sfx: number
+  wordCount: number
   pendingReview: number
   approved: number
 }
@@ -30,9 +32,14 @@ export function getDefaultThreadId(project: Project, episodeId: string | null | 
   return getEpisodeThreads(project, episodeId)[0]?.id ?? null
 }
 
+function countWords(text: string): number {
+  if (!text) return 0
+  return text.trim().split(/\s+/).filter(Boolean).length
+}
+
 export function getEpisodeStats(episode: Episode | null | undefined): EpisodeStats {
   if (!episode) {
-    return { pages: 0, panels: 0, dialogue: 0, sfx: 0, pendingReview: 0, approved: 0 }
+    return { pages: 0, panels: 0, dialogue: 0, captions: 0, sfx: 0, wordCount: 0, pendingReview: 0, approved: 0 }
   }
 
   return episode.pages.reduce<EpisodeStats>((stats, page) => {
@@ -45,12 +52,14 @@ export function getEpisodeStats(episode: Episode | null | undefined): EpisodeSta
 
       for (const block of panel.content) {
         if (block.type === 'dialogue') stats.dialogue += 1
+        if (block.type === 'caption') stats.captions += 1
         if (block.type === 'sfx') stats.sfx += 1
+        stats.wordCount += countWords(block.text)
       }
     }
 
     return stats
-  }, { pages: 0, panels: 0, dialogue: 0, sfx: 0, pendingReview: 0, approved: 0 })
+  }, { pages: 0, panels: 0, dialogue: 0, captions: 0, sfx: 0, wordCount: 0, pendingReview: 0, approved: 0 })
 }
 
 export function getProjectActivitySummary(project: Project, activeEpisodeId: string | null | undefined): ProjectActivitySummary {

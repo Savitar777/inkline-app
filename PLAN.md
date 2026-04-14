@@ -82,23 +82,55 @@ Inkline is a fully functional collaborative comic/manga/webtoon workspace for wr
 
 ## Known Limitations & Future Work
 
-- **E3: Virtualized panel list** — For episodes with 100+ panels, consider adding `@tanstack/react-virtual` for the page list in ScriptEditor
+- ~~**E3: Virtualized panel list**~~ — Done. `@tanstack/react-virtual` integrated.
 - **Rate limiting is client-side only** — A determined attacker could bypass. For multi-tenant deployment, proxy writes through Supabase Edge Functions
 - **Email notifications** — Currently in-app only. Add Resend/SendGrid for email alerts on submissions, approvals, etc.
-- **Drag-to-reorder** — Panels and pages don't support drag reorder (nice-to-have)
+- ~~**Drag-to-reorder**~~ — Done. `@dnd-kit` integrated for page and panel reordering.
 - **Image optimization** — Consider adding thumbnails for panel grid to reduce bandwidth
 - **Phase 6 (Monetization)** — Deleted from scope. This is a personal tool, not a SaaS product
 
 ---
 
-## Tech Stack
+## Phase 2: Enrichment & Pre-Production (In Progress)
 
-| Layer | Choice |
-|-------|--------|
-| Frontend | React 19 + TypeScript + Tailwind CSS |
-| Build | Vite 8 |
-| State | React Context API (ProjectContext, WorkspaceContext, PreferencesContext) |
-| Backend | Supabase (Auth + Postgres + Realtime + Storage) |
-| Offline | localStorage fallback when Supabase is not configured |
-| Export | jsPDF, html2canvas-pro, JSZip, FileSaver |
-| Icons | Custom SVG icon library (`src/icons.tsx`) |
+### 2a: Story Bible + Character Bible (COMPLETE)
+- [x] Story Bible view with 4 sub-tabs: Arcs, Locations, World Rules, Timeline
+- [x] Character Bible with extended profiles (appearance, personality, goals, fears, backstory, speech patterns)
+- [x] Character relationships (ally, rival, mentor, etc.) with descriptions
+- [x] Character arc tracking across story arcs
+- [x] Schema v2 migration for storyBible data
+- [x] Nav tabs updated: Script Editor | Story Bible | Character Bible | Collaboration | Compile & Export
+- [x] Full offline/localStorage support
+
+### 2b: Script Editor Improvements (COMPLETE)
+- [x] Script statistics panel (word count, captions, dialogue density bar)
+- [x] Panel type tagging (establishing, action, dialogue, impact, transition) with color-coded badges
+- [x] Inline character profile preview on hover (popover with personality, speech patterns, goals)
+
+### 2c: Review & Collaboration Improvements (COMPLETE)
+- [x] Side-by-side script/art comparison modal (script details + artwork + revision count + open CRs)
+- [x] Change request notes per panel (structured ChangeRequest objects with open/resolved status, persisted to panel data)
+- [x] Panel revision history modal (all submitted versions with thumbnails, timestamps, "Latest" badge)
+- [x] CR badge overlay on panel grid thumbnails
+- [x] Wired artwork uploads to create PanelRevision entries (online + offline)
+
+### 2d: Export & Validation (COMPLETE)
+- [x] Preflight validation engine (preflightService: size estimation, 6 validation checks)
+- [x] Long-image slicing for WEBTOON uploads (webtoonSlicer: 800px horizontal chunks)
+- [x] Thumbnail preset generation (thumbnailService: 3 preset sizes, ZIP export)
+- [x] Export scope dialog with presets, DPI selector, WebP quality, webtoon slice toggle
+- [x] Export history tracking (5 most recent)
+
+### 2e: Production Tracker (COMPLETE)
+- [x] Episode progress dashboard (stacked status bars, completion %)
+- [x] Page-level status heatmap (color-coded grid, tooltip details)
+- [x] Role-based workload view (per-role tabs with action labels)
+- [x] Production selectors and status color system
+
+### 2f: Tutorial & Learning (COMPLETE)
+- [x] TutorialContext with localStorage persistence (completed modules, dismissed tips, difficulty)
+- [x] Contextual tips system (ContextualTipBanner in editor, collab, compile views)
+- [x] Glossary component with search, alphabetical grouping, related terms navigation
+- [x] Learning settings tab (progress bar, tips toggle, difficulty selector, reset)
+- [x] Tutorial data: modules, glossary entries, contextual tips
+

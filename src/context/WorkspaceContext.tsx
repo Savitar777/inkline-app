@@ -46,7 +46,7 @@ function readSelection(defaultView: WorkspaceView): WorkspaceSelection {
   const viewParam = params.get('view')
   const formatParam = params.get('format')
 
-  const view: WorkspaceView = viewParam === 'editor' || viewParam === 'collab' || viewParam === 'compile'
+  const view: WorkspaceView = viewParam === 'editor' || viewParam === 'collab' || viewParam === 'compile' || viewParam === 'story-bible' || viewParam === 'character-bible'
     ? viewParam
     : defaultView
 

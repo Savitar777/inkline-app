@@ -5,17 +5,18 @@ import { ChevronDown, ChevronRight, Grip, Plus, Trash2 } from '../icons'
 import Tag from './Tag'
 import SortablePanelBlock from './SortablePanelBlock'
 import ConfirmDialog from './workspace/ConfirmDialog'
-import type { Page, Panel, ContentBlock } from '../types'
+import type { Character, Page, Panel, ContentBlock } from '../types'
 
 const SHOT_TYPES = ['Wide / Establishing', 'Wide', 'Medium-wide', 'Medium', 'Close-up', 'Extreme close-up', 'Over-the-shoulder', 'POV', 'Insert']
 
 interface Props {
   page: Page
   episodeId: string
+  characters?: Character[]
   onUpdatePage: (pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => void
   onDeletePage: (pageId: string) => void
   onAddPanel: (pageId: string, shot: string) => void
-  onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
+  onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'panelType' | 'assetUrl' | 'changeRequests' | 'revisions'>>) => void
   onDeletePanel: (pageId: string, panelId: string) => void
   onReorderPanels: (pageId: string, orderedPanelIds: string[]) => void
   onAddBlock: (pageId: string, panelId: string, type: ContentBlock['type']) => void
@@ -26,7 +27,7 @@ interface Props {
 }
 
 export default memo(function PageBlock({
-  page, episodeId,
+  page, episodeId, characters,
   onUpdatePage, onDeletePage,
   onAddPanel, onUpdatePanel, onDeletePanel, onReorderPanels,
   onAddBlock, onUpdateBlock, onDeleteBlock, dragListeners,
@@ -128,6 +129,7 @@ export default memo(function PageBlock({
                   panel={panel}
                   episodeId={episodeId}
                   pageId={page.id}
+                  characters={characters}
                   onUpdate={(panelId, updates) => onUpdatePanel(page.id, panelId, updates)}
                   onDelete={panelId => onDeletePanel(page.id, panelId)}
                   onAddBlock={(panelId, type) => onAddBlock(page.id, panelId, type)}

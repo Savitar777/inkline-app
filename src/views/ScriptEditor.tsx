@@ -23,6 +23,7 @@ import ScriptPreviewModal from '../components/ScriptPreviewModal'
 import MobileDrawer from '../components/MobileDrawer'
 import ConfirmDialog from '../components/workspace/ConfirmDialog'
 import ScriptImportWizard from '../components/ScriptImportWizard'
+import ContextualTipBanner from '../components/ContextualTipBanner'
 import { useProject } from '../context/ProjectContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useBreakpoint } from '../hooks/useBreakpoint'
@@ -184,10 +185,11 @@ function CharacterCard({ char }: { char: Character }) {
 interface VirtualizedPageListProps {
   pages: Page[]
   episodeId: string
+  characters: Character[]
   onUpdatePage: (pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => void
   onDeletePage: (pageId: string) => void
   onAddPanel: (pageId: string, shot: string) => void
-  onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
+  onUpdatePanel: (pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'panelType' | 'assetUrl' | 'changeRequests' | 'revisions'>>) => void
   onDeletePanel: (pageId: string, panelId: string) => void
   onReorderPanels: (pageId: string, orderedPanelIds: string[]) => void
   onAddBlock: (pageId: string, panelId: string, type: ContentBlock['type']) => void
@@ -216,7 +218,7 @@ function SortablePageItem({ id, children }: { id: string; children: (listeners: 
 }
 
 function VirtualizedPageList({
-  pages, episodeId, onUpdatePage, onDeletePage, onAddPanel, onUpdatePanel,
+  pages, episodeId, characters, onUpdatePage, onDeletePage, onAddPanel, onUpdatePanel,
   onDeletePanel, onReorderPanels, onAddBlock, onUpdateBlock, onDeleteBlock,
   onReorderPages, onAddPage,
 }: VirtualizedPageListProps) {
@@ -268,6 +270,7 @@ function VirtualizedPageList({
                       <PageBlock
                         page={page}
                         episodeId={episodeId}
+                        characters={characters}
                         onUpdatePage={onUpdatePage}
                         onDeletePage={onDeletePage}
                         onAddPanel={onAddPanel}
@@ -468,7 +471,9 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
           {[
             { label: 'Pages', value: stats.pages },
             { label: 'Panels', value: stats.panels },
+            { label: 'Words', value: stats.wordCount },
             { label: 'Dialogue', value: stats.dialogue },
+            { label: 'Captions', value: stats.captions },
             { label: 'SFX', value: stats.sfx },
           ].map(({ label, value }) => (
             <div key={label} className="bg-ink-panel rounded px-2 py-1.5">
@@ -477,6 +482,20 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
             </div>
           ))}
         </div>
+        {stats.panels > 0 && (
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-[10px] text-ink-muted font-sans">Dialogue density</span>
+            <div className="flex-1 h-1.5 bg-ink-panel rounded-full overflow-hidden">
+              <div
+                className="h-full bg-tag-dialogue/60 rounded-full transition-all"
+                style={{ width: `${Math.round((stats.dialogue / stats.panels) * 100)}%` }}
+              />
+            </div>
+            <span className="text-[10px] font-mono text-ink-text">
+              {((stats.dialogue / stats.panels) * 100).toFixed(0)}%
+            </span>
+          </div>
+        )}
       </div>
     </>
   )
@@ -504,6 +523,7 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
 
       {/* Main Script Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
+        <ContextualTipBanner view="editor" />
         {!episode ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <FileText size={32} className="text-ink-muted mb-3" />
@@ -622,6 +642,7 @@ export default function ScriptEditor({ onGoToCollab }: Props = {}) {
                 <VirtualizedPageList
                   pages={episode.pages}
                   episodeId={episode.id}
+                  characters={project.characters}
                   onUpdatePage={(pageId, updates) => updatePage(episode.id, pageId, updates)}
                   onDeletePage={pageId => deletePage(episode.id, pageId)}
                   onAddPanel={(pageId, shot) => addPanel(episode.id, pageId, shot)}

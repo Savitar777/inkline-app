@@ -1,6 +1,6 @@
 /* ─── Schema Migration Chain ─── */
 
-export const CURRENT_SCHEMA_VERSION = 1
+export const CURRENT_SCHEMA_VERSION = 2
 
 type MigrationFn = (raw: unknown) => unknown
 
@@ -11,6 +11,14 @@ type MigrationFn = (raw: unknown) => unknown
 const MIGRATIONS: MigrationFn[] = [
   // Migration 0 → 1: normalize pre-versioning documents (identity for now)
   (raw) => raw,
+  // Migration 1 → 2: add storyBible and extended character fields
+  (raw) => {
+    const doc = raw as Record<string, unknown>
+    if (!doc.storyBible) {
+      doc.storyBible = { arcs: [], locations: [], worldRules: [], timeline: [] }
+    }
+    return doc
+  },
 ]
 
 /**

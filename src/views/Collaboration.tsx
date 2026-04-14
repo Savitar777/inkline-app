@@ -28,6 +28,7 @@ import MessageInput from '../components/collaboration/MessageInput'
 import CollaboratorSidebar from '../components/collaboration/CollaboratorSidebar'
 import UploadModal from '../components/collaboration/UploadModal'
 import ReferencePanel from '../components/collaboration/ReferencePanel'
+import ContextualTipBanner from '../components/ContextualTipBanner'
 
 const MOCK_COLLABORATORS = [
   { name: 'Kai Nakamura', role: 'artist', status: 'online', avatar: 'K' },
@@ -151,7 +152,18 @@ export default function Collaboration() {
       if (result) {
         const pan = allPanels.find(p => p.id === selectedPanelId)
         if (pan && activeEpisode) {
-          updatePanel(activeEpisode.id, pan.pageId, pan.id, { assetUrl: result.url, status: 'draft_received' })
+          const prevRevisions = pan.revisions ?? []
+          const newRevision = {
+            id: crypto.randomUUID(),
+            assetUrl: result.url,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: profile?.name ?? user?.id ?? 'unknown',
+          }
+          updatePanel(activeEpisode.id, pan.pageId, pan.id, {
+            assetUrl: result.url,
+            status: 'draft_received',
+            revisions: [...prevRevisions, newRevision],
+          })
         }
         const panLabel = pan ? `P${pan.pageNumber}/Panel ${pan.number}` : 'a panel'
         await sendMessage(resolvedActiveThread, user.id, `Uploaded draft artwork for ${panLabel}`, result.url)
@@ -167,6 +179,24 @@ export default function Collaboration() {
       }
       setLiveMessagesByThread(prev => applyThreadMessages(prev, resolvedActiveThread, messages => [...messages, msg], threadsRef.current))
       addMessageToProject(resolvedActiveThread, msg)
+      // Track revision locally when offline
+      if (selectedPanelId && uploadPreview && activeEpisode) {
+        const pan = allPanels.find(p => p.id === selectedPanelId)
+        if (pan) {
+          const prevRevisions = pan.revisions ?? []
+          const newRevision = {
+            id: crypto.randomUUID(),
+            assetUrl: uploadPreview,
+            uploadedAt: new Date().toISOString(),
+            uploadedBy: profile?.name ?? 'Artist',
+          }
+          updatePanel(activeEpisode.id, pan.pageId, pan.id, {
+            assetUrl: uploadPreview,
+            status: 'draft_received' as Panel['status'],
+            revisions: [...prevRevisions, newRevision],
+          })
+        }
+      }
     }
     setUploadPreview(null); setUploadFile(null); setSelectedPanelId(''); setShowUpload(false)
   }
@@ -320,6 +350,7 @@ export default function Collaboration() {
 
       {/* Main — Messages */}
       <div className="flex-1 flex flex-col">
+        <ContextualTipBanner view="collab" />
         {!thread ? (
           <div className="flex flex-col items-center justify-center h-full text-center">
             {isMobile && (

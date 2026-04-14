@@ -35,6 +35,19 @@ Roles are assigned at signup and cannot be self-escalated from the client.
 
 ## Features
 
+### Story Bible
+- **Story Arcs** — define arcs with title, description, episode range, status (planning/active/completed), and linked characters
+- **Locations** — document settings with name, description, and reference images
+- **World Rules** — record rules of the story universe (magic systems, social hierarchies, technology)
+- **Timeline** — chronological ordering of events linked to episodes
+- Full offline support — Story Bible data lives in the project JSON document
+
+### Character Bible
+- **Extended profiles** — appearance, personality, goals, fears, backstory, speech patterns (for letterer reference)
+- **Relationships** — map character connections (ally, rival, mentor, love interest, family, friend, enemy) with descriptions
+- **Character arcs** — track how characters change across story arcs (start state → end state)
+- Builds on existing character roster — color-coded dialogue tagging still works in Script Editor
+
 ### Script Editor
 - Hierarchical structure: Episodes → Pages → Panels → Content Blocks
 - Content block types: `dialogue`, `caption`, `sfx`
@@ -43,6 +56,9 @@ Roles are assigned at signup and cannot be self-escalated from the client.
 - **Drag-to-reorder pages** — grip handle on each page row; drag within an episode to reorder, syncs to Supabase
 - **Drag-to-reorder panels** — grip handle on each panel row; drag within a page to reorder, syncs to Supabase
 - **Script Import Wizard** — import TXT, MD, DOCX, or PDF files with a heuristic parser that auto-detects Episodes, Pages, Panels, dialogue, captions, and SFX. Three merge strategies: append, replace, or merge into existing structure.
+- **Script statistics** — word count, dialogue/caption/SFX counts, and dialogue density bar per episode
+- **Panel type tagging** — classify panels as establishing, action, dialogue, impact, or transition with color-coded badges
+- **Character profile popover** — hover over a character name in dialogue blocks to see personality, speech patterns, and goals
 
 ### Collaboration
 - Thread-based messaging per episode and per page range
@@ -52,6 +68,9 @@ Roles are assigned at signup and cannot be self-escalated from the client.
 - Panel status workflow: `draft` → `submitted` → `draft_received` → `changes_requested` / `approved`
 - Team invitation by email with role assignment
 - **Reference Files panel** — upload and browse per-episode reference images and documents
+- **Change request notes** — structured per-panel change requests with open/resolved status tracking
+- **Panel revision history** — tracks all submitted artwork versions with timestamps, uploader, and "Latest" badge
+- **Side-by-side comparison** — modal showing script details alongside artwork for each panel
 
 ### Compile & Export
 - Assembly preview for all four formats with zoom and DPI controls
@@ -64,6 +83,21 @@ Roles are assigned at signup and cannot be self-escalated from the client.
   - WEBP quality slider
   - In-memory export history (last 20 exports)
 - **Asset Library drawer** — browse all project files grouped by category
+- **Preflight validation** — 6 checks before export: unapproved panels, open change requests, DPI mismatch, CMYK+WebP conflict, empty panels, file size estimate per DPI/format
+- **Webtoon slicer** — splits long assembled images into 800px horizontal chunks with metadata for platform upload
+- **Thumbnail presets** — generates 3 standard sizes (300×300, 600×600, 1200×630) with center-crop, exported as ZIP
+
+### Production Tracker
+- **Episode dashboard** — stacked status bars per episode showing panel counts by status with completion percentage
+- **Page heatmap** — color-coded grid of all pages across episodes, filterable by episode, with tooltip showing page number and dominant status
+- **Role workload view** — tabs for Writer / Artist / Letterer / Colorist, each showing panels currently in that role's queue with action labels
+- 6 panel statuses: `draft`, `submitted`, `in_progress`, `draft_received`, `changes_requested`, `approved`
+
+### Tutorial & Learning
+- **Contextual tip banners** — gold-bordered tips appear on first visit to Script Editor, Collaboration, and Compile & Export views; dismissable and persistent via localStorage
+- **Settings → Learning tab** — module progress bar, tips toggle, content depth selector (beginner / intermediate / advanced), reset progress
+- **Glossary** — searchable comic/manga terminology with alphabetical grouping, related terms navigation, and linked module references
+- Tutorial module library covering: app features, panel composition, pacing, dialogue & lettering, format-specific specs, production workflow
 
 ### File Pipeline
 - MIME whitelist per file category
@@ -140,19 +174,37 @@ src/
 │   ├── SortablePanelBlock.tsx      # useSortable wrapper for PanelBlock
 │   ├── AssemblyPreview.tsx         # Page layout renderer
 │   ├── LetteringOverlay.tsx        # Draggable speech bubbles
+│   ├── ContextualTipBanner.tsx     # First-visit tip banner with dismiss
+│   ├── TutorialGlossary.tsx        # Searchable glossary with modal detail view
 │   ├── collaboration/
 │   │   ├── ReferencePanel.tsx      # Per-episode reference files
 │   │   ├── UploadModal.tsx         # Artwork upload with panel picker
 │   │   └── ...
-│   └── compile/
-│       ├── AssetLibraryDrawer.tsx  # Project-wide file browser
-│       ├── ExportScopeDialog.tsx   # Export options with presets & history
-│       └── ...
-├── context/                        # React context providers
+│   ├── compile/
+│   │   ├── AssetLibraryDrawer.tsx  # Project-wide file browser
+│   │   ├── ExportScopeDialog.tsx   # Export options with presets & history
+│   │   └── ...
+│   ├── production/
+│   │   ├── EpisodeDashboard.tsx    # Stacked status bars per episode
+│   │   ├── PageHeatmap.tsx         # Color-coded page grid
+│   │   └── RoleWorkloadView.tsx    # Per-role panel queue
+│   └── settings/
+│       └── LearningTab.tsx         # Tutorial progress, tips toggle, difficulty
+├── context/
+│   ├── TutorialContext.tsx         # Tutorial progress, tips, difficulty state
+│   └── ...                         # Auth, Project, Workspace, etc.
+├── data/
+│   └── tutorials/
+│       ├── types.ts                # TutorialModule, GlossaryEntry, ContextualTip types
+│       ├── modules.ts              # Learning module content
+│       ├── glossary.ts             # Comic/manga terminology
+│       └── tips.ts                 # Contextual tip definitions
 ├── domain/
 │   ├── validation.ts               # Project JSON import/export
 │   ├── migrations.ts               # Schema migration chain
-│   └── selectors.ts                # Pure derived-data functions
+│   ├── selectors.ts                # Pure derived-data functions
+│   ├── productionSelectors.ts      # Episode/page/role production aggregates
+│   └── statusColors.ts             # Panel status → Tailwind class map
 ├── lib/
 │   ├── assemblyEngine.ts           # Layout engine for all 4 formats
 │   └── supabase.ts                 # Supabase client + offline guard
@@ -165,14 +217,20 @@ src/
 │   ├── documentProcessorService.ts # TXT/MD/DOCX/PDF extraction
 │   ├── scriptImportService.ts      # Script parsing + project merge
 │   ├── referenceFileService.ts     # Reference file upload/list/delete
-│   └── exportService.ts            # PDF/PNG/WEBP/ZIP export
+│   ├── exportService.ts            # PDF/PNG/WEBP/ZIP export
+│   ├── preflightService.ts         # Pre-export validation checks
+│   ├── thumbnailService.ts         # Thumbnail preset generation + ZIP
+│   └── webtoonSlicer.ts            # Long-image horizontal slicing
 ├── types/
 │   ├── index.ts                    # Domain types
 │   └── files.ts                    # File pipeline types
 └── views/
     ├── ScriptEditor.tsx
+    ├── StoryBible.tsx              # Story arcs, locations, world rules, timeline
+    ├── CharacterBible.tsx          # Extended profiles, relationships, arcs
     ├── Collaboration.tsx
     ├── CompileExport.tsx
+    ├── ProductionTracker.tsx       # Episode dashboard, heatmap, role workload
     └── ProjectDashboard.tsx
 supabase/
     schema.sql                      # Tables, RLS, triggers, functions
@@ -235,5 +293,5 @@ Row-Level Security is enabled on all tables. Access is gated by `is_project_memb
 
 ## Known Gaps
 
-- Rate limiting is client-side only
+- Rate limiting is client-side only — a determined attacker could bypass; proxy writes through Supabase Edge Functions for multi-tenant hardening
 - Email notifications — in-app only, no Resend/SendGrid integration

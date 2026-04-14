@@ -3048,20 +3048,21 @@ Phase 2 focuses on three pillars: pre-production planning, production visibility
 
 | Feature | Effort | Impact |
 |---|---|---|
-| Drag-to-reorder panels | Medium | Essential editing capability; currently requires delete/recreate |
-| Drag-to-reorder pages | Medium | Same as above for pages |
-| Virtualized panel rendering | Medium | Removes performance ceiling for large episodes |
-| Script statistics panel | Low | Self-assessment tool for writers |
-| Panel type tagging | Low | Enables pacing analysis and tutorial connections |
+| ~~Drag-to-reorder panels~~ | ~~Medium~~ | ~~DONE — @dnd-kit integrated~~ |
+| ~~Drag-to-reorder pages~~ | ~~Medium~~ | ~~DONE — @dnd-kit integrated~~ |
+| ~~Virtualized panel rendering~~ | ~~Medium~~ | ~~DONE — @tanstack/react-virtual~~ |
+| ~~Script statistics panel~~ | ~~Low~~ | ~~DONE — word count, dialogue density, captions~~ |
+| ~~Panel type tagging~~ | ~~Low~~ | ~~DONE — 5 types with color-coded badges~~ |
+| ~~Character profile popover~~ | ~~Low~~ | ~~DONE — hover on character name in dialogue blocks~~ |
 
 ### Priority 4 — Review and Collaboration Improvements
 
 | Feature | Effort | Impact |
 |---|---|---|
-| Side-by-side script/art comparison | Medium | Core review experience — "does the art match the script?" |
-| Change request notes per panel | Medium | Clear revision records instead of thread-message hunting |
-| Panel revision history | Medium | Track all versions of a panel |
-| Batch page approval | Low | Efficiency for review workflow |
+| ~~Side-by-side script/art comparison~~ | ~~Medium~~ | ~~DONE — SideBySideModal in PanelGrid.tsx~~ |
+| ~~Change request notes per panel~~ | ~~Medium~~ | ~~DONE — Structured ChangeRequest objects with open/resolved lifecycle~~ |
+| ~~Panel revision history~~ | ~~Medium~~ | ~~DONE — RevisionHistory modal with version tracking~~ |
+| ~~Batch page approval~~ | ~~Low~~ | ~~DONE — bulkApprovePage in CompileExport~~ |
 | Email notifications (via Resend/SendGrid) | Medium | Reduces reliance on checking the app |
 
 ### Priority 5 — Export and Validation

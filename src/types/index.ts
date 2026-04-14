@@ -7,6 +7,22 @@ export interface ContentBlock {
 }
 
 export type PanelStatus = 'draft' | 'submitted' | 'in_progress' | 'draft_received' | 'changes_requested' | 'approved'
+export type PanelType = 'establishing' | 'action' | 'dialogue' | 'impact' | 'transition'
+
+export interface ChangeRequest {
+  id: string
+  note: string
+  status: 'open' | 'resolved'
+  createdBy: string
+  createdAt: string
+}
+
+export interface PanelRevision {
+  id: string
+  assetUrl: string
+  uploadedAt: string
+  uploadedBy: string
+}
 
 export interface Panel {
   id: string
@@ -15,7 +31,10 @@ export interface Panel {
   description: string
   content: ContentBlock[]
   status?: PanelStatus
+  panelType?: PanelType
   assetUrl?: string
+  changeRequests?: ChangeRequest[]
+  revisions?: PanelRevision[]
 }
 
 export interface Page {
@@ -33,12 +52,66 @@ export interface Episode {
   pages: Page[]
 }
 
+export interface CharacterRelationship {
+  targetCharacterId: string
+  type: 'ally' | 'rival' | 'mentor' | 'mentee' | 'love_interest' | 'family' | 'friend' | 'enemy' | 'other'
+  description: string
+}
+
+export interface CharacterArc {
+  storyArcId: string
+  startState: string
+  endState: string
+}
+
 export interface Character {
   id: string
   name: string
   role: string
   desc: string
   color: string
+  appearance?: string
+  personality?: string
+  goals?: string
+  fears?: string
+  backstory?: string
+  speechPatterns?: string
+  designSheetUrls?: string[]
+  relationships?: CharacterRelationship[]
+  arcs?: CharacterArc[]
+}
+
+export type StoryArcStatus = 'planning' | 'active' | 'completed'
+
+export interface StoryArc {
+  id: string
+  title: string
+  description: string
+  episodeStart: number
+  episodeEnd: number
+  status: StoryArcStatus
+  linkedCharacterIds: string[]
+}
+
+export interface Location {
+  id: string
+  name: string
+  description: string
+  referenceImageUrls: string[]
+}
+
+export interface WorldRule {
+  id: string
+  title: string
+  description: string
+}
+
+export interface TimelineEvent {
+  id: string
+  title: string
+  description: string
+  episodeId: string
+  order: number
 }
 
 export interface Message {
@@ -61,6 +134,13 @@ export interface Thread {
   messages: Message[]
 }
 
+export interface StoryBible {
+  arcs: StoryArc[]
+  locations: Location[]
+  worldRules: WorldRule[]
+  timeline: TimelineEvent[]
+}
+
 export interface Project {
   id: string
   title: string
@@ -68,6 +148,7 @@ export interface Project {
   episodes: Episode[]
   characters: Character[]
   threads: Thread[]
+  storyBible?: StoryBible
 }
 
 export interface PanelReviewState {
@@ -80,7 +161,7 @@ export interface PanelReviewState {
 
 export interface WorkspaceSelection {
   projectId: string | null
-  view: 'editor' | 'collab' | 'compile'
+  view: 'editor' | 'collab' | 'compile' | 'story-bible' | 'character-bible' | 'production'
   episodeId: string | null
   threadId: string | null
   selectedFormat: Project['format']
@@ -111,12 +192,55 @@ export interface ProjectSearchResult {
   kind: SearchResultKind
   title: string
   subtitle: string
-  view: 'editor' | 'collab' | 'compile'
+  view: 'editor' | 'collab' | 'compile' | 'story-bible' | 'character-bible' | 'production'
   episodeId?: string
   pageId?: string
   panelId?: string
   threadId?: string
   keywords: string[]
+}
+
+/* ─── Production Tracker ─── */
+
+export type ProductionRole = 'writer' | 'artist' | 'letterer' | 'colorist'
+
+export interface PanelStatusCount {
+  draft: number
+  submitted: number
+  in_progress: number
+  draft_received: number
+  changes_requested: number
+  approved: number
+  total: number
+}
+
+export interface EpisodeProductionSummary {
+  episodeId: string
+  episodeNumber: number
+  episodeTitle: string
+  statusCounts: PanelStatusCount
+  pageCount: number
+  completionPct: number
+}
+
+export interface PageHeatmapEntry {
+  pageId: string
+  pageNumber: number
+  episodeId: string
+  dominantStatus: PanelStatus
+  panelCount: number
+  approvedCount: number
+}
+
+export interface RoleWorkloadItem {
+  role: ProductionRole
+  episodeId: string
+  episodeNumber: number
+  pageId: string
+  pageNumber: number
+  panelId: string
+  panelNumber: number
+  currentStatus: PanelStatus
 }
 
 export interface SyncProjectPatch {
@@ -125,4 +249,5 @@ export interface SyncProjectPatch {
   episodes?: Episode[]
   characters?: Character[]
   threads?: Thread[]
+  storyBible?: StoryBible
 }

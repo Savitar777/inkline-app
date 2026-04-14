@@ -3,7 +3,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import { defaultProject } from '../data/mockData'
 import * as svc from '../services/projectService'
 import { parseProjectDocument, serializeProjectDocument, type ProjectImportError } from '../domain/validation'
-import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, Thread } from '../types'
+import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, StoryBible, Thread } from '../types'
 import type { ScriptImportRecord } from '../types/files'
 import { applyImport as applyScriptImportToProject } from '../services/scriptImportService'
 
@@ -34,7 +34,7 @@ interface ProjectDocumentContextType {
   updatePage: (episodeId: string, pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => void
   deletePage: (episodeId: string, pageId: string) => void
   addPanel: (episodeId: string, pageId: string, shot: string) => void
-  updatePanel: (episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
+  updatePanel: (episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'panelType' | 'assetUrl' | 'changeRequests' | 'revisions'>>) => void
   deletePanel: (episodeId: string, pageId: string, panelId: string) => void
   addContentBlock: (episodeId: string, pageId: string, panelId: string, type: ContentBlock['type']) => void
   updateContentBlock: (episodeId: string, pageId: string, panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
@@ -47,6 +47,7 @@ interface ProjectDocumentContextType {
   addThread: (thread: Thread) => void
   updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
   addMessage: (threadId: string, message: Message) => void
+  updateStoryBible: (bible: StoryBible) => void
   applyScriptImport: (record: ScriptImportRecord, strategy: 'replace' | 'append' | 'merge') => void
 }
 
@@ -69,6 +70,7 @@ const emptyProject = (): Project => ({
   episodes: [],
   characters: [],
   threads: [],
+  storyBible: { arcs: [], locations: [], worldRules: [], timeline: [] },
 })
 
 interface ProviderProps {
@@ -371,7 +373,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     }
   }, [projectId])
 
-  const updatePanel = useCallback((episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => {
+  const updatePanel = useCallback((episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'panelType' | 'assetUrl' | 'changeRequests' | 'revisions'>>) => {
     setProject(current => ({
       ...current,
       episodes: current.episodes.map(episodeItem => (
@@ -594,6 +596,10 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     }))
   }, [])
 
+  const updateStoryBible = useCallback((bible: StoryBible) => {
+    setProject(current => ({ ...current, storyBible: bible }))
+  }, [])
+
   const applyScriptImport = useCallback((record: ScriptImportRecord, strategy: 'replace' | 'append' | 'merge') => {
     setProject(current => applyScriptImportToProject(record, strategy, current))
   }, [])
@@ -626,6 +632,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     deleteCharacter,
     reorderPages,
     reorderPanels,
+    updateStoryBible,
     addThread,
     updateThread,
     addMessage,
@@ -660,6 +667,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     updateEpisode,
     updatePage,
     updatePanel,
+    updateStoryBible,
     updateThread,
   ])
 

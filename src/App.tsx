@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
-import { Bell, ChevronLeft, Download, Layers, MessageSquare, PenLine, Search, Upload } from './icons'
+import { BarChart, Bell, BookOpen, ChevronLeft, Download, Layers, MessageSquare, PenLine, Search, Upload, Users } from './icons'
 import { ProjectProvider, useProject } from './context/ProjectContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { PreferencesProvider, useResolvedPlatformMode } from './context/PreferencesContext'
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext'
+import { TutorialProvider } from './context/TutorialContext'
 import AuthGuard from './components/AuthGuard'
 import ToastContainer from './components/Toast'
 import { ToastProvider } from './context/ToastContext'
@@ -24,21 +25,31 @@ const loadCollaboration = () => import('./views/Collaboration')
 const loadCompileExport = () => import('./views/CompileExport')
 const loadProjectDashboard = () => import('./views/ProjectDashboard')
 const loadSettingsPanel = () => import('./components/SettingsPanel')
+const loadStoryBible = () => import('./views/StoryBible')
+const loadCharacterBible = () => import('./views/CharacterBible')
+const loadProductionTracker = () => import('./views/ProductionTracker')
 
 const ScriptEditor = lazy(loadScriptEditor)
 const Collaboration = lazy(loadCollaboration)
 const CompileExport = lazy(loadCompileExport)
 const ProjectDashboard = lazy(loadProjectDashboard)
 const SettingsPanel = lazy(loadSettingsPanel)
+const StoryBibleView = lazy(loadStoryBible)
+const CharacterBibleView = lazy(loadCharacterBible)
+const ProductionTrackerView = lazy(loadProductionTracker)
 
 const viewTabs: Array<{
   id: WorkspaceView
   label: string
+  shortLabel: string
   preload: () => Promise<unknown>
 }> = [
-  { id: 'editor', label: 'Script Editor', preload: loadScriptEditor },
-  { id: 'collab', label: 'Collaboration', preload: loadCollaboration },
-  { id: 'compile', label: 'Compile & Export', preload: loadCompileExport },
+  { id: 'editor', label: 'Script Editor', shortLabel: 'Script', preload: loadScriptEditor },
+  { id: 'story-bible', label: 'Story Bible', shortLabel: 'Story', preload: loadStoryBible },
+  { id: 'character-bible', label: 'Character Bible', shortLabel: 'Characters', preload: loadCharacterBible },
+  { id: 'collab', label: 'Collaboration', shortLabel: 'Collab', preload: loadCollaboration },
+  { id: 'compile', label: 'Compile & Export', shortLabel: 'Compile', preload: loadCompileExport },
+  { id: 'production', label: 'Production', shortLabel: 'Track', preload: loadProductionTracker },
 ]
 
 function isTypingTarget(target: EventTarget | null) {
@@ -315,9 +326,12 @@ function NavBar({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
 }
 
 const mobileTabIcons: Record<WorkspaceView, (p: { size: number; className?: string }) => React.ReactNode> = {
-  editor: PenLine,
-  collab: MessageSquare,
-  compile: Layers,
+  'editor': PenLine,
+  'story-bible': BookOpen,
+  'character-bible': Users,
+  'collab': MessageSquare,
+  'compile': Layers,
+  'production': BarChart,
 }
 
 function WorkspaceShell({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
@@ -359,13 +373,31 @@ function WorkspaceShell({ onBackToDashboard }: { onBackToDashboard?: () => void 
 
       if (matchesShortcut(event, platformMode, { key: '2' })) {
         event.preventDefault()
-        setActiveView('collab')
+        setActiveView('story-bible')
         return
       }
 
       if (matchesShortcut(event, platformMode, { key: '3' })) {
         event.preventDefault()
+        setActiveView('character-bible')
+        return
+      }
+
+      if (matchesShortcut(event, platformMode, { key: '4' })) {
+        event.preventDefault()
+        setActiveView('collab')
+        return
+      }
+
+      if (matchesShortcut(event, platformMode, { key: '5' })) {
+        event.preventDefault()
         setActiveView('compile')
+        return
+      }
+
+      if (matchesShortcut(event, platformMode, { key: '6' })) {
+        event.preventDefault()
+        setActiveView('production')
         return
       }
 
@@ -430,8 +462,11 @@ function WorkspaceShell({ onBackToDashboard }: { onBackToDashboard?: () => void 
           <div key={`${activeProjectId ?? 'offline'}:${activeView}`} className="ink-stage-enter h-full">
             <Suspense fallback={<ShellFallback />}>
               {activeView === 'editor' && <ScriptEditor onGoToCollab={() => setActiveView('collab')} />}
+              {activeView === 'story-bible' && <StoryBibleView />}
+              {activeView === 'character-bible' && <CharacterBibleView />}
               {activeView === 'collab' && <Collaboration />}
               {activeView === 'compile' && <CompileExport />}
+              {activeView === 'production' && <ProductionTrackerView />}
             </Suspense>
           </div>
         )}
@@ -451,7 +486,7 @@ function WorkspaceShell({ onBackToDashboard }: { onBackToDashboard?: () => void 
                 }`}
               >
                 <Icon size={18} />
-                {tab.label.split(' ')[0]}
+                {tab.shortLabel}
               </button>
             )
           })}
@@ -512,9 +547,11 @@ export default function App() {
         <AuthProvider>
           <PreferencesProvider>
             <WorkspaceProvider>
-              <AuthGuard>
-                <AppShell />
-              </AuthGuard>
+              <TutorialProvider>
+                <AuthGuard>
+                  <AppShell />
+                </AuthGuard>
+              </TutorialProvider>
             </WorkspaceProvider>
           </PreferencesProvider>
         </AuthProvider>

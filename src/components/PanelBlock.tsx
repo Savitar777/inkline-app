@@ -3,7 +3,15 @@ import { ChevronDown, ChevronRight, Grip, Plus, Trash2, MessageCircle, Quote, Vo
 import Tag from './Tag'
 import ContentBlockView from './ContentBlockView'
 import ConfirmDialog from './workspace/ConfirmDialog'
-import type { Panel, ContentBlock, PanelStatus } from '../types'
+import type { Character, Panel, ContentBlock, PanelStatus, PanelType } from '../types'
+
+const PANEL_TYPES: { value: PanelType; label: string; color: string }[] = [
+  { value: 'establishing', label: 'Establishing', color: 'text-blue-400 border-blue-400/30 bg-blue-400/10' },
+  { value: 'action', label: 'Action', color: 'text-red-400 border-red-400/30 bg-red-400/10' },
+  { value: 'dialogue', label: 'Dialogue', color: 'text-tag-dialogue border-tag-dialogue/30 bg-tag-dialogue/10' },
+  { value: 'impact', label: 'Impact', color: 'text-amber-400 border-amber-400/30 bg-amber-400/10' },
+  { value: 'transition', label: 'Transition', color: 'text-purple-400 border-purple-400/30 bg-purple-400/10' },
+]
 
 const STATUS_BADGE: Record<PanelStatus, { label: string; color: string }> = {
   draft:             { label: 'Draft',            color: 'text-ink-muted border-ink-muted/30 bg-ink-muted/10' },
@@ -20,7 +28,8 @@ interface Props {
   panel: Panel
   episodeId: string
   pageId: string
-  onUpdate: (panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
+  characters?: Character[]
+  onUpdate: (panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'panelType' | 'assetUrl' | 'changeRequests' | 'revisions'>>) => void
   onDelete: (panelId: string) => void
   onAddBlock: (panelId: string, type: ContentBlock['type']) => void
   onUpdateBlock: (panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
@@ -29,14 +38,16 @@ interface Props {
   dragListeners?: any
 }
 
-export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, onDelete, onAddBlock, onUpdateBlock, onDeleteBlock, dragListeners }: Props) {
+export default memo(function PanelBlock({ panel, episodeId, pageId, characters, onUpdate, onDelete, onAddBlock, onUpdateBlock, onDeleteBlock, dragListeners }: Props) {
   const [open, setOpen] = useState(true)
   const [editingDesc, setEditingDesc] = useState(false)
   const [descDraft, setDescDraft] = useState(panel.description)
   const [showShotPicker, setShowShotPicker] = useState(false)
+  const [showTypePicker, setShowTypePicker] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const descRef = useRef<HTMLTextAreaElement>(null)
   const shotPickerRef = useRef<HTMLDivElement>(null)
+  const typePickerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (editingDesc && descRef.current) descRef.current.focus()
@@ -53,6 +64,18 @@ export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, on
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showShotPicker])
+
+  // Close panel type picker on outside click
+  useEffect(() => {
+    if (!showTypePicker) return
+    const handleClickOutside = (e: MouseEvent) => {
+      if (typePickerRef.current && !typePickerRef.current.contains(e.target as Node)) {
+        setShowTypePicker(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showTypePicker])
 
   const saveDesc = () => {
     onUpdate(panel.id, { description: descDraft })
@@ -109,6 +132,42 @@ export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, on
               </div>
             )}
           </div>
+
+          {/* Panel type picker */}
+          <div className="relative" ref={typePickerRef} onClick={e => e.stopPropagation()}>
+            <button
+              aria-label="Change panel type"
+              onClick={() => setShowTypePicker(v => !v)}
+              className={`text-[9px] uppercase tracking-wider font-sans border rounded px-1.5 py-0.5 leading-none transition-colors ${
+                panel.panelType
+                  ? PANEL_TYPES.find(t => t.value === panel.panelType)?.color ?? 'text-ink-muted border-ink-muted/30'
+                  : 'text-ink-muted border-ink-border hover:text-ink-text hover:border-ink-text/30'
+              }`}
+            >
+              {panel.panelType ? PANEL_TYPES.find(t => t.value === panel.panelType)?.label : 'Type'}
+            </button>
+            {showTypePicker && (
+              <div className="absolute left-0 top-full mt-1 w-40 bg-ink-panel border border-ink-border rounded-lg shadow-xl z-20 py-1">
+                {PANEL_TYPES.map(pt => (
+                  <button
+                    key={pt.value}
+                    className={`w-full text-left px-3 py-1.5 text-xs font-sans transition-colors ${panel.panelType === pt.value ? 'text-ink-gold bg-ink-gold/10' : 'text-ink-text hover:text-ink-light hover:bg-ink-dark/50'}`}
+                    onClick={() => { onUpdate(panel.id, { panelType: pt.value }); setShowTypePicker(false) }}
+                  >
+                    {pt.label}
+                  </button>
+                ))}
+                {panel.panelType && (
+                  <button
+                    className="w-full text-left px-3 py-1.5 text-xs font-sans text-ink-muted hover:text-ink-light hover:bg-ink-dark/50 transition-colors border-t border-ink-border mt-1 pt-1.5"
+                    onClick={() => { onUpdate(panel.id, { panelType: undefined }); setShowTypePicker(false) }}
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Delete panel */}
@@ -159,6 +218,7 @@ export default memo(function PanelBlock({ panel, episodeId, pageId, onUpdate, on
                 episodeId={episodeId}
                 pageId={pageId}
                 panelId={panel.id}
+                characters={characters}
                 onUpdate={(blockId, updates) => onUpdateBlock(panel.id, blockId, updates)}
                 onDelete={blockId => onDeleteBlock(panel.id, blockId)}
               />

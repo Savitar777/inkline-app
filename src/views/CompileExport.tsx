@@ -18,11 +18,13 @@ import { generateBubblesFromContent } from '../domain/lettering'
 import { useNotifications } from '../context/NotificationContext'
 import { sendMessage } from '../services/projectService'
 import type { ExportOptions as ExportOpts } from '../services/exportService'
-import type { ExportOutputFormat, ExportScope, ExportPresetId } from '../types/files'
+import type { ExportOutputFormat, ExportScope, ExportPresetId, ThumbnailSize } from '../types/files'
+import { runPreflight } from '../services/preflightService'
 import { getFormatSpec } from '../lib/assemblyEngine'
 import { getEpisodeById, getReviewablePanels } from '../domain/selectors'
 import { useToast } from '../context/ToastContext'
 import type { PanelStatus } from '../types'
+import ContextualTipBanner from '../components/ContextualTipBanner'
 
 /* ─── Helpers ─── */
 
@@ -65,6 +67,8 @@ export default function CompileExport() {
     preset?: ExportPresetId
     dpi: number
     webpQuality?: number
+    webtoonSlice?: boolean
+    thumbnailSizes?: ThumbnailSize[]
   }) => {
     if (!previewRef.current || !episode) return
     setExporting(true)
@@ -76,12 +80,24 @@ export default function CompileExport() {
       episodeTitle: episode.title,
     }
     try {
-      const { exportPDF, exportZIP, exportSinglePNG, exportWebP } = await import('../services/exportService')
-      const fmt = dialogOpts.outputFormat
-      if (fmt === 'pdf') await exportPDF(previewRef.current, opts)
-      else if (fmt === 'png') await exportSinglePNG(previewRef.current, opts)
-      else if (fmt === 'zip') await exportZIP(previewRef.current, opts)
-      else if (fmt === 'webp') await exportWebP(previewRef.current, opts)
+      if (dialogOpts.outputFormat === 'thumbnail' && dialogOpts.thumbnailSizes?.length) {
+        const { exportThumbnailSet } = await import('../services/thumbnailService')
+        await exportThumbnailSet(previewRef.current, {
+          title: project.title,
+          episodeTitle: episode.title,
+          sizes: dialogOpts.thumbnailSizes,
+        })
+      } else if (dialogOpts.webtoonSlice) {
+        const { exportWebtoonZIP } = await import('../services/exportService')
+        await exportWebtoonZIP(previewRef.current, opts)
+      } else {
+        const { exportPDF, exportZIP, exportSinglePNG, exportWebP } = await import('../services/exportService')
+        const fmt = dialogOpts.outputFormat
+        if (fmt === 'pdf') await exportPDF(previewRef.current, opts)
+        else if (fmt === 'png') await exportSinglePNG(previewRef.current, opts)
+        else if (fmt === 'zip') await exportZIP(previewRef.current, opts)
+        else if (fmt === 'webp') await exportWebP(previewRef.current, opts)
+      }
       showToast('Export complete!', 'success')
     } catch (e) {
       if (import.meta.env.DEV) console.error('Export failed:', e)
@@ -128,6 +144,17 @@ export default function CompileExport() {
   const allSubmitted = totalCount > 0 && panels.every(p => p.status !== 'missing')
   const allApproved = totalCount > 0 && completeCount === totalCount
 
+  const preflightResult = useMemo(
+    () => episode ? runPreflight(episode, {
+      format: selectedFormat,
+      dpi,
+      outputFormat: 'pdf',
+      colorProfile: spec.colorProfile,
+      scope: 'episode',
+    }) : null,
+    [episode, selectedFormat, dpi, spec.colorProfile],
+  )
+
   const syncThreadApprovedStatus = useCallback((approvedPanelIds: Set<string>) => {
     if (!episode) return
     const epThread = project.threads.find(t => t.episodeId === episode.id)
@@ -154,18 +181,33 @@ export default function CompileExport() {
 
   const requestChanges = useCallback(async (panelId: string, pageId: string) => {
     if (!episode) return
-    updatePanel(episode.id, pageId, panelId, { status: 'changes_requested' as PanelStatus })
     const note = changesNote[panelId]?.trim()
+    const pan = panels.find(p => p.id === panelId)
+
+    // Build a structured ChangeRequest and append it to the panel
+    const existingPanel = episode.pages.find(pg => pg.id === pageId)?.panels.find(p => p.id === panelId)
+    const prevCRs = existingPanel?.changeRequests ?? []
+    const newCR = {
+      id: crypto.randomUUID(),
+      note: note || 'Changes requested',
+      status: 'open' as const,
+      createdBy: profile?.name ?? user?.id ?? 'unknown',
+      createdAt: new Date().toISOString(),
+    }
+    updatePanel(episode.id, pageId, panelId, {
+      status: 'changes_requested' as PanelStatus,
+      changeRequests: [...prevCRs, newCR],
+    })
+
+    // Also send thread message for visibility
     const epThread = project.threads.find(t => t.episodeId === episode.id)
     if (note && user && epThread) {
-      const pan = panels.find(p => p.id === panelId)
       const label = pan ? `P${pan.page}/Panel ${pan.panel}` : 'a panel'
       await sendMessage(epThread.id, user.id, `Changes requested for ${label}: ${note}`)
     }
     if (epThread) {
       updateThread(epThread.id, { status: 'in_progress' })
     }
-    const pan = panels.find(p => p.id === panelId)
     addNotification({
       type: 'changes_requested',
       title: 'Changes requested',
@@ -173,7 +215,7 @@ export default function CompileExport() {
     })
     setChangesNote(prev => { const n = { ...prev }; delete n[panelId]; return n })
     setShowChangesFor(null)
-  }, [addNotification, changesNote, episode, panels, project.threads, updatePanel, updateThread, user])
+  }, [addNotification, changesNote, episode, panels, profile, project.threads, updatePanel, updateThread, user])
 
   const bulkApprovePage = useCallback((pageId: string) => {
     if (!episode) return
@@ -250,6 +292,7 @@ export default function CompileExport() {
           </div>
         </div>
 
+        <ContextualTipBanner view="compile" />
         <div className="flex-1 overflow-y-auto">
           {/* Format Selector */}
           <FormatPicker selectedFormat={selectedFormat} onSelectFormat={setSelectedFormat} />
@@ -418,6 +461,7 @@ export default function CompileExport() {
               { label: 'All panels submitted', done: allSubmitted },
               { label: 'All panels approved', done: allApproved },
               { label: 'No panels in review', done: reviewCount === 0 },
+              { label: 'Preflight passed', done: preflightResult?.pass ?? false },
               { label: 'Format selected', done: true },
               { label: 'Color profile set', done: true },
             ].map((item) => (
@@ -447,6 +491,9 @@ export default function CompileExport() {
       {showExportDialog && episode && (
         <ExportScopeDialog
           pages={episode.pages}
+          episode={episode}
+          format={selectedFormat}
+          colorProfile={spec.colorProfile}
           exporting={exporting}
           onExport={handleExport}
           onClose={() => setShowExportDialog(false)}

@@ -194,4 +194,5 @@ export const defaultProject: Project = {
       ],
     },
   ],
+  storyBible: { arcs: [], locations: [], worldRules: [], timeline: [] },
 }

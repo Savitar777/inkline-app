@@ -1,13 +1,14 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { X, User, Layers, Download } from '../icons'
+import { X, User, Layers, Download, BookOpen } from '../icons'
 import { useAuth } from '../context/AuthContext'
 import { isSupabaseConfigured } from '../lib/supabase'
 import ProfileAvatar from './ProfileAvatar'
 import ProfileTab from './settings/ProfileTab'
 import WorkspaceTab from './settings/WorkspaceTab'
 import DataTab from './settings/DataTab'
+import LearningTab from './settings/LearningTab'
 
-type PanelTab = 'profile' | 'workspace' | 'data'
+type PanelTab = 'profile' | 'workspace' | 'data' | 'learning'
 
 interface ProjectActions {
   title: string
@@ -38,6 +39,12 @@ const tabMeta: { id: PanelTab; label: string; description: string; icon: ReactNo
     label: 'Data',
     description: 'Backups, imports, and local preferences',
     icon: <Download size={16} />,
+  },
+  {
+    id: 'learning',
+    label: 'Learning',
+    description: 'Tutorial progress, tips, and content depth',
+    icon: <BookOpen size={16} />,
   },
 ]
 
@@ -133,6 +140,7 @@ export default function SettingsPanel({ onClose, projectActions }: SettingsPanel
             {activeTab === 'data' && (
               <DataTab projectActions={projectActions} status={status} setStatus={setStatus} />
             )}
+            {activeTab === 'learning' && <LearningTab />}
           </div>
         </div>
       </aside>

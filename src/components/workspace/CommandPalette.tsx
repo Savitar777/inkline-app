@@ -5,7 +5,7 @@ import { formatShortcut, type ShortcutToken } from '../../domain/platform'
 import { useProject } from '../../context/ProjectContext'
 import { useWorkspace } from '../../context/WorkspaceContext'
 import { getEpisodeById } from '../../domain/selectors'
-import { Layers, MessageSquare, PenLine, Search, Send } from '../../icons'
+import { BarChart, BookOpen, Layers, MessageSquare, PenLine, Search, Send, Users } from '../../icons'
 import type { ProjectSearchResult, SearchScope } from '../../types'
 
 interface CommandItem {
@@ -26,6 +26,9 @@ function includesQuery(values: string[], query: string) {
 function resultIcon(result: ProjectSearchResult) {
   if (result.view === 'collab') return MessageSquare
   if (result.view === 'compile') return Layers
+  if (result.view === 'story-bible') return BookOpen
+  if (result.view === 'character-bible') return Users
+  if (result.view === 'production') return BarChart
   return PenLine
 }
 
@@ -56,11 +59,27 @@ export default function CommandPalette() {
         action: () => setActiveView('editor'),
       },
       {
+        id: 'switch-story-bible',
+        title: 'Open Story Bible',
+        subtitle: 'Manage arcs, locations, world rules, and timeline.',
+        keywords: ['story', 'bible', 'arcs', 'locations', 'world'],
+        shortcut: ['primary', '2'],
+        action: () => setActiveView('story-bible'),
+      },
+      {
+        id: 'switch-character-bible',
+        title: 'Open Character Bible',
+        subtitle: 'Extended profiles, relationships, and character arcs.',
+        keywords: ['character', 'bible', 'profiles', 'relationships'],
+        shortcut: ['primary', '3'],
+        action: () => setActiveView('character-bible'),
+      },
+      {
         id: 'switch-collab',
         title: 'Open Collaboration',
         subtitle: 'Review thread handoff, unread feedback, and uploads.',
         keywords: ['collaboration', 'messages', 'feedback'],
-        shortcut: ['primary', '2'],
+        shortcut: ['primary', '4'],
         action: () => setActiveView('collab'),
       },
       {
@@ -68,8 +87,16 @@ export default function CommandPalette() {
         title: 'Open Compile & Export',
         subtitle: 'Inspect asset readiness and export output.',
         keywords: ['compile', 'export', 'review'],
-        shortcut: ['primary', '3'],
+        shortcut: ['primary', '5'],
         action: () => setActiveView('compile'),
+      },
+      {
+        id: 'switch-production',
+        title: 'Open Production Tracker',
+        subtitle: 'Episode progress, page heatmap, and role workload.',
+        keywords: ['production', 'tracker', 'progress', 'heatmap', 'workload'],
+        shortcut: ['primary', '6'],
+        action: () => setActiveView('production'),
       },
       {
         id: 'search',
@@ -285,7 +312,13 @@ export default function CommandPalette() {
                   ? MessageSquare
                   : item.command.id.endsWith('compile')
                     ? Layers
-                    : PenLine
+                    : item.command.id.endsWith('story-bible')
+                      ? BookOpen
+                      : item.command.id.endsWith('character-bible')
+                        ? Users
+                        : item.command.id.endsWith('production')
+                          ? BarChart
+                          : PenLine
                 : item.command.id === 'submit'
                   ? Send
                   : Search

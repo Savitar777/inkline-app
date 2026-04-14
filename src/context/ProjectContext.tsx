@@ -3,7 +3,7 @@ import { createContext, useContext, useEffect, useMemo, type ReactNode } from 'r
 import { getDefaultEpisodeId } from '../domain/selectors'
 import { ProjectDocumentProvider, useProjectDocument, type ImportProjectResult } from './ProjectDocumentContext'
 import { useWorkspace } from './WorkspaceContext'
-import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, Thread } from '../types'
+import type { Character, ContentBlock, Episode, Message, Page, Panel, Project, StoryBible, Thread } from '../types'
 
 interface ProjectContextType {
   project: Project
@@ -25,7 +25,7 @@ interface ProjectContextType {
   updatePage: (episodeId: string, pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => void
   deletePage: (episodeId: string, pageId: string) => void
   addPanel: (episodeId: string, pageId: string, shot: string) => void
-  updatePanel: (episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'assetUrl'>>) => void
+  updatePanel: (episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'panelType' | 'assetUrl' | 'changeRequests' | 'revisions'>>) => void
   deletePanel: (episodeId: string, pageId: string, panelId: string) => void
   addContentBlock: (episodeId: string, pageId: string, panelId: string, type: ContentBlock['type']) => void
   updateContentBlock: (episodeId: string, pageId: string, panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => void
@@ -35,6 +35,7 @@ interface ProjectContextType {
   deleteCharacter: (id: string) => void
   reorderPages: (episodeId: string, orderedPageIds: string[]) => void
   reorderPanels: (episodeId: string, pageId: string, orderedPanelIds: string[]) => void
+  updateStoryBible: (bible: StoryBible) => void
   addThread: (thread: Thread) => void
   updateThread: (threadId: string, updates: Partial<Pick<Thread, 'status'>>) => void
   addMessage: (threadId: string, message: Message) => void
