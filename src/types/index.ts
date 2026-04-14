@@ -42,6 +42,8 @@ export interface Page {
   number: number
   layoutNote: string
   panels: Panel[]
+  deadline?: string
+  assignedRole?: ProductionRole
 }
 
 export interface Episode {
@@ -50,6 +52,8 @@ export interface Episode {
   title: string
   brief: string
   pages: Page[]
+  deadline?: string
+  assignedRole?: ProductionRole
 }
 
 export interface CharacterRelationship {
@@ -241,6 +245,18 @@ export interface RoleWorkloadItem {
   panelId: string
   panelNumber: number
   currentStatus: PanelStatus
+}
+
+export interface CalendarEntry {
+  id: string
+  date: string
+  type: 'episode' | 'page'
+  label: string
+  assignedRole?: ProductionRole
+  episodeId: string
+  pageId?: string
+  isOverdue: boolean
+  completionPct: number
 }
 
 export interface SyncProjectPatch {
