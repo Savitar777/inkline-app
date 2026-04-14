@@ -48,6 +48,8 @@ export interface FileMetadata {
   pageId?: string
   importedAsScriptId?: string
   exportJobId?: string
+  tags?: string[]
+  autoTags?: string[]
 }
 
 export interface UploadedFile {
