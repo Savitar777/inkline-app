@@ -90,7 +90,7 @@ Inkline is a fully functional collaborative comic/manga/webtoon workspace for wr
 - ~~**Drag-to-reorder**~~ — Done. `@dnd-kit` integrated for page and panel reordering.
 - ~~**Image optimization**~~ — Done. `loading="lazy"` on all panel artwork images; realtime panel asset sync via Supabase Realtime.
 - **Phase 6 (Monetization)** — Deleted from scope. This is a personal tool, not a SaaS product
-- **Asset tagging/search** — Reference files are browseable but not searchable by tag
+- ~~**Asset tagging/search**~~ — Done. Auto-tags, user tags, search + filter in Asset Library
 - **Episode/page templates** — No reusable layout system yet
 
 ---
@@ -174,4 +174,26 @@ Inkline is a fully functional collaborative comic/manga/webtoon workspace for wr
 - [x] Glossary component with search, alphabetical grouping, related terms navigation
 - [x] Learning settings tab (progress bar, tips toggle, difficulty selector, reset)
 - [x] Tutorial data: modules, glossary entries, contextual tips
+
+---
+
+## Phase 4: Asset Tagging & Search + Timeline/Scheduling (COMPLETE)
+
+### 4a: Asset Tagging & Search (COMPLETE)
+- [x] FileMetadata tags/autoTags fields
+- [x] Tag derivation from category, associations, MIME type, characters
+- [x] AssetSearchBar, TagChips, TagEditor components
+- [x] Search + filter integration in AssetLibraryDrawer
+
+### 4b: Calendar Scheduling (COMPLETE)
+- [x] Episode/Page deadline context actions (setEpisodeDeadline, setPageDeadline)
+- [x] CalendarView month grid with role color filters
+- [x] CalendarDay and DeadlinePopover CRUD components
+- [x] Mobile dots indicator with expandable list view
+- [x] Calendar tab in ProductionTracker
+
+### Auth: Google Sign-In Branding (COMPLETE)
+- [x] GoogleAuthButton component with Google Identity branding compliance (dark theme variant)
+- [x] Updated Login.tsx and Signup.tsx to use branded button
+- [x] Correct text: "Sign in with Google" / "Sign up with Google"
 

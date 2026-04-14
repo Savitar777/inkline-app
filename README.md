@@ -91,6 +91,7 @@ Roles are assigned at signup and cannot be self-escalated from the client.
 - **Episode dashboard** — stacked status bars per episode showing panel counts by status with completion percentage
 - **Page heatmap** — color-coded grid of all pages across episodes, filterable by episode, with tooltip showing page number and dominant status
 - **Role workload view** — tabs for Writer / Artist / Letterer / Colorist, each showing panels currently in that role's queue with action labels
+- **Calendar view** — month grid with deadline entries, role color filters, mobile dots+list
 - 6 panel statuses: `draft`, `submitted`, `in_progress`, `draft_received`, `changes_requested`, `approved`
 
 ### Tutorial & Learning
@@ -127,8 +128,19 @@ File categories and limits:
 
 All heavy libraries (mammoth, pdfjs-dist, marked, html2canvas-pro, jsPDF, JSZip) are dynamically imported to keep the initial bundle small.
 
+### Asset Tagging & Search
+- **Auto-tags** — derived from file category, MIME type, panel/character associations, and project state
+- **User tags** — manual tag editing on any asset via TagEditor
+- **Search & filter** — full-text search + tag-chip filtering in Asset Library drawer
+
+### Calendar Scheduling
+- **Episode/page deadlines** — assign due dates with role responsibility (writer, artist, letterer, colorist)
+- **Month-view calendar** — CalendarView in Production Tracker with role color filters
+- **Deadline CRUD** — DeadlinePopover for creating, editing, and deleting deadlines
+- **Mobile support** — dots indicator on calendar days with expandable list view
+
 ### Auth & Settings
-- Google OAuth + email/password via Supabase Auth
+- Google OAuth (branded per [Google Identity guidelines](https://developers.google.com/identity/branding-guidelines)) + email/password via Supabase Auth
 - Role is locked at signup — cannot be changed by the user
 - Profile settings with file-based avatar upload
 - Theme: light / dark / system
@@ -187,6 +199,7 @@ src/
 │   ├── PanelBlock.tsx              # Panel row with grip drag handle
 │   ├── SortablePanelBlock.tsx      # useSortable wrapper for PanelBlock
 │   ├── AssemblyPreview.tsx         # Page layout renderer
+│   ├── GoogleAuthButton.tsx        # Google-branded OAuth button
 │   ├── LetteringOverlay.tsx        # Draggable speech bubbles
 │   ├── ContextualTipBanner.tsx     # First-visit tip banner with dismiss
 │   ├── TutorialGlossary.tsx        # Searchable glossary with modal detail view
@@ -202,6 +215,8 @@ src/
 │   │   ├── EpisodeDashboard.tsx    # Stacked status bars per episode
 │   │   ├── PageHeatmap.tsx         # Color-coded page grid
 │   │   └── RoleWorkloadView.tsx    # Per-role panel queue
+│   ├── schedule/
+│   │   └── CalendarView.tsx        # Month-view calendar with deadline entries
 │   └── settings/
 │       └── LearningTab.tsx         # Tutorial progress, tips toggle, difficulty
 ├── context/
@@ -223,6 +238,9 @@ src/
 │   ├── migrations.ts               # Schema migration chain
 │   ├── selectors.ts                # Pure derived-data functions
 │   ├── productionSelectors.ts      # Episode/page/role production aggregates
+│   ├── scheduleSelectors.ts        # Calendar entry selector from deadlines
+│   ├── tagDerivation.ts            # Auto-tag derivation from file metadata
+│   ├── search.ts                   # Multi-scope search logic
 │   └── statusColors.ts             # Panel status → Tailwind class map
 ├── lib/
 │   ├── assemblyEngine.ts           # Layout engine for all 4 formats
@@ -249,8 +267,11 @@ src/
     ├── CharacterBible.tsx          # Extended profiles, relationships, arcs
     ├── Collaboration.tsx
     ├── CompileExport.tsx
-    ├── ProductionTracker.tsx       # Episode dashboard, heatmap, role workload
-    └── ProjectDashboard.tsx
+    ├── ProductionTracker.tsx       # Episode dashboard, heatmap, role workload, calendar
+    ├── ProjectDashboard.tsx
+    └── auth/
+        ├── Login.tsx               # Email/password + Google OAuth sign-in
+        └── Signup.tsx              # Account creation with role picker + Google OAuth
 supabase/
     schema.sql                      # Tables, RLS, triggers, functions
 public/
@@ -317,5 +338,4 @@ Row-Level Security is enabled on all tables. Access is gated by `is_project_memb
 
 - Rate limiting is client-side only — acceptable for a personal tool; proxy writes through Supabase Edge Functions for multi-tenant hardening
 - Email notifications — in-app only, no Resend/SendGrid integration
-- No asset tagging or search — reference files are browseable but not searchable by tag
 - No episode/page templates — every episode starts from scratch

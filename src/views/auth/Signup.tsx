@@ -1,6 +1,7 @@
 import { memo, useState } from 'react'
-import { PenLine, Check, Google } from '../../icons'
+import { PenLine, Check } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
+import GoogleAuthButton from '../../components/GoogleAuthButton'
 import type { UserRole } from '../../lib/database.types'
 
 interface Props {
@@ -81,15 +82,12 @@ function Signup({ onGoToLogin }: Props) {
           <p className="text-xs text-ink-text font-sans mb-6">Join Inkline and start building your comic.</p>
 
           {/* Google OAuth */}
-          <button
-            type="button"
+          <GoogleAuthButton
             onClick={handleGoogleSignUp}
+            loading={googleLoading}
             disabled={googleLoading || loading}
-            className="w-full flex items-center justify-center gap-2.5 bg-ink-panel border border-ink-border rounded-lg py-2.5 text-sm font-sans text-ink-light hover:border-ink-gold/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Google size={18} />
-            {googleLoading ? 'Redirecting…' : 'Continue with Google'}
-          </button>
+            mode="signup"
+          />
 
           {/* Divider */}
           <div className="flex items-center gap-3 my-5">

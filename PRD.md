@@ -415,7 +415,7 @@ Inkline already has a solid foundation that should not be rebuilt. The following
 | ~~No pre-production tools (Story Bible, Character Bible)~~ | ~~Writers plan outside~~ | ~~DONE — Phase 2a~~ |
 | ~~No production pipeline visibility~~ | ~~No dashboard~~ | ~~DONE — Phase 2e~~ |
 | ~~No tutorial or learning system~~ | ~~Users must already understand concepts~~ | ~~DONE — Phase 2f~~ |
-| No asset tagging or search | Reference files and assets are browseable but not searchable by tag | Add tagging system to Asset Library |
+| ~~No asset tagging or search~~ | ~~Reference files and assets are browseable but not searchable by tag~~ | ~~DONE — Phase 4a: auto-tags, user tags, search + filter in Asset Library~~ |
 | No template/reusable layout system | Every episode starts from scratch | Add templates for recurring page/panel structures |
 
 ## 5.4 Areas to Expand Rather Than Rebuild
@@ -3094,9 +3094,19 @@ Phase 3 hardened performance, Supabase sync, mobile UX, and build configuration 
 - Build config (terser minification, vercel.json, PWA manifest, meta tags)
 - 3 new DB indexes for query performance
 
-## 19.4 Phase 4: Advanced Workflows and Templates (Later)
+## 19.4 Phase 4: Asset Tagging & Search + Timeline/Scheduling (COMPLETE)
 
-Phase 4 adds depth and sophistication to the systems built in Phase 2.
+Phase 4 added asset organization and production scheduling capabilities.
+
+**Completed:**
+- Asset tagging system (auto-tags from metadata + user tags, search/filter in Asset Library)
+- Calendar scheduling (episode/page deadlines with role assignment, month-view CalendarView)
+- DeadlinePopover CRUD, mobile dots+list view
+- Google Sign-In button updated to comply with Google Identity branding guidelines
+
+## 19.5 Phase 5: Advanced Workflows and Templates (Later)
+
+Phase 5 adds depth and sophistication to the systems built in earlier phases.
 
 ### Tutorial Content Expansion
 - Full 50+ module tutorial library covering all content categories from Section 8.2
@@ -3108,7 +3118,7 @@ Phase 4 adds depth and sophistication to the systems built in Phase 2.
 ### Template and Reuse Systems
 - Episode templates (save and reuse page/panel structures)
 - Page layout templates (common panel compositions)
-- Asset tagging and cross-episode linking
+- ~~Asset tagging and cross-episode linking~~ — DONE in Phase 4a
 - Reusable character expression sets
 - Style guide enforcement (color palettes, font choices per project)
 

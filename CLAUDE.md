@@ -53,7 +53,8 @@ App
 - **Notifications:** `addNotification()` from `useNotifications()` for workflow events
 - **Offline:** When `VITE_SUPABASE_URL` is unset, all service calls are no-ops; state lives in localStorage under `inkline-project`
 - **Context split:** `ProjectDocumentContext` and `ProjectContext` each split into State + Actions contexts. Use `useProject()` for backward compat, or `useProjectState()` / `useProjectActions()` for fine-grained subscriptions. Actions context is referentially stable (never triggers re-renders).
-- **Memoization:** All 48 components wrapped with `React.memo`. New components should follow this pattern.
+- **Memoization:** All 55 components wrapped with `React.memo`. New components should follow this pattern.
+- **Google Auth:** `GoogleAuthButton` component (`src/components/GoogleAuthButton.tsx`) follows Google Identity branding guidelines — use it for all Google sign-in/sign-up buttons
 - **Realtime:** `useRealtimePanelAssets` hook subscribes to panel_assets INSERT events for live artwork sync
 
 ### Key Files
@@ -72,11 +73,12 @@ App
 - `src/domain/scheduleSelectors.ts` — Calendar entry selector from project deadlines
 - `src/domain/validation.ts` — Project JSON import/export with `__schemaVersion` + migration chain
 - `src/lib/assemblyEngine.ts` — Panel assembly logic for all 4 formats
+- `src/components/GoogleAuthButton.tsx` — Google-branded OAuth button (dark theme, branding-compliant)
 - `vercel.json` — Vercel deployment config (cache headers, SPA rewrites)
 
 ## Current Status
 
-MVP complete. Phases 1–5 and Phase 2 enrichment complete. Phase 3 (Performance, Optimization & Polish) complete. Phase 4 (Asset Tagging & Search + Timeline/Scheduling) complete.
+MVP complete. Phases 1–5 and Phase 2 enrichment complete. Phase 3 (Performance, Optimization & Polish) complete. Phase 4 (Asset Tagging & Search + Timeline/Scheduling) complete. Google Sign-In button updated to comply with Google Identity branding guidelines.
 
 Phase 3 sub-phases: **3a** (React perf — context split, React.memo rollout), **3b** (Supabase optimization — field-limiting, pagination, realtime panel assets, localStorage debounce, session refresh), **3c** (Mobile UX — safe-area, image lazy loading, animation fix), **3d** (Build/deploy — terser, vercel.json, PWA manifest, meta tags), **3e** (Final verification)
 
