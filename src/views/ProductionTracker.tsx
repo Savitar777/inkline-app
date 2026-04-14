@@ -5,9 +5,10 @@ import { STATUS_BG_CLASSES, STATUS_LABELS, ALL_PANEL_STATUSES } from '../domain/
 import EpisodeDashboard from '../components/production/EpisodeDashboard'
 import PageHeatmap from '../components/production/PageHeatmap'
 import RoleWorkloadView from '../components/production/RoleWorkloadView'
+import CalendarView from '../components/schedule/CalendarView'
 import type { ProductionRole } from '../types'
 
-type TrackerTab = 'dashboard' | 'heatmap' | 'workload'
+type TrackerTab = 'dashboard' | 'heatmap' | 'workload' | 'calendar'
 
 function ProductionTracker() {
   const { project } = useProject()
@@ -42,6 +43,7 @@ function ProductionTracker() {
                 { id: 'dashboard' as TrackerTab, label: 'Dashboard' },
                 { id: 'heatmap' as TrackerTab, label: 'Heatmap' },
                 { id: 'workload' as TrackerTab, label: 'Workload' },
+                { id: 'calendar' as TrackerTab, label: 'Calendar' },
               ]).map(t => (
                 <button
                   key={t.id}
@@ -105,6 +107,7 @@ function ProductionTracker() {
               onRoleChange={setActiveRole}
             />
           )}
+          {tab === 'calendar' && <CalendarView />}
         </div>
       </div>
 
