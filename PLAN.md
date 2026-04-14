@@ -4,13 +4,15 @@
 
 Inkline is a fully functional collaborative comic/manga/webtoon workspace for writer + artist collaboration (like Bakuman). Built with React 19 + TypeScript + Tailwind CSS + Vite 8. Supabase backend with offline localStorage fallback. All 4 roles supported: writer, artist, letterer, colorist.
 
-**All phases through Phase 3 are complete.** The app is optimized and production-ready with:
+**All phases through Phase 4 are complete.** The app is optimized and production-ready with:
 - Full script editing (episodes, pages, panels, content blocks, characters)
 - Real-time collaboration with threads, messaging, and file uploads
 - Compile & export in 4 formats (Webtoon, Manga, Comic, Manhwa)
 - Auth with role-based signup and project invitation
 - Undo/redo, notifications, theme toggle, responsive design
 - Security hardening with RLS, rate limiting, and input validation
+- Asset tagging & search (auto-tags from metadata, user tags, search/filter in Asset Library)
+- Calendar scheduling (episode/page deadlines with role assignment, month-view calendar in Production Tracker)
 
 ---
 

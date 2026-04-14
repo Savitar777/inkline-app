@@ -68,12 +68,16 @@ App
 - `src/hooks/useRealtimePanelAssets.ts` — Realtime panel artwork sync
 - `src/hooks/useBreakpoint.ts` — Responsive breakpoint hook (useSyncExternalStore)
 - `src/domain/selectors.ts` — Pure derived-data functions
+- `src/domain/tagDerivation.ts` — Auto-tag derivation from file metadata + project state
+- `src/domain/scheduleSelectors.ts` — Calendar entry selector from project deadlines
 - `src/domain/validation.ts` — Project JSON import/export with `__schemaVersion` + migration chain
 - `src/lib/assemblyEngine.ts` — Panel assembly logic for all 4 formats
 - `vercel.json` — Vercel deployment config (cache headers, SPA rewrites)
 
 ## Current Status
 
-MVP complete. Phases 1–5 and Phase 2 enrichment complete. Phase 3 (Performance, Optimization & Polish) complete.
+MVP complete. Phases 1–5 and Phase 2 enrichment complete. Phase 3 (Performance, Optimization & Polish) complete. Phase 4 (Asset Tagging & Search + Timeline/Scheduling) complete.
 
 Phase 3 sub-phases: **3a** (React perf — context split, React.memo rollout), **3b** (Supabase optimization — field-limiting, pagination, realtime panel assets, localStorage debounce, session refresh), **3c** (Mobile UX — safe-area, image lazy loading, animation fix), **3d** (Build/deploy — terser, vercel.json, PWA manifest, meta tags), **3e** (Final verification)
+
+Phase 4: **4a** (Asset tagging — FileMetadata tags/autoTags, tag derivation from category/associations/MIME/characters, search + filter in AssetLibraryDrawer), **4b** (Calendar scheduling — Episode/Page deadlines with role assignment, month-view CalendarView in ProductionTracker, DeadlinePopover CRUD, mobile dots+list)
