@@ -103,11 +103,13 @@ function Collaboration() {
     : profile?.role === 'colorist' ? 'colorist'
     : 'writer'
 
-  const allPanels: (Panel & { pageNumber: number; pageId: string })[] = activeEpisode
-    ? activeEpisode.pages.flatMap(pg =>
-        pg.panels.map(pan => ({ ...pan, pageNumber: pg.number, pageId: pg.id }))
-      )
-    : []
+  const allPanels: (Panel & { pageNumber: number; pageId: string })[] = useMemo(() => (
+    activeEpisode
+      ? activeEpisode.pages.flatMap(pg =>
+          pg.panels.map(pan => ({ ...pan, pageNumber: pg.number, pageId: pg.id }))
+        )
+      : []
+  ), [activeEpisode])
 
   useEffect(() => { threadsRef.current = episodeThreads }, [episodeThreads])
 
@@ -417,7 +419,6 @@ function Collaboration() {
               onInputChange={setInputText}
               onSend={handleSend}
               onToggleUpload={() => setShowUpload(v => !v)}
-              onFileSelect={(f) => { handleFileSelect(f); setShowUpload(true) }}
               onBroadcastTyping={broadcastTyping}
             />
           </>

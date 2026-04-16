@@ -81,7 +81,7 @@ export async function processPdf(file: File): Promise<PdfImportResult> {
     pdfjsLib.GlobalWorkerOptions.workerSrc = ''
 
     const buffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument({ data: buffer } as any).promise
+    const pdf = await pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
 
     const pageCount = pdf.numPages
     const textParts: string[] = []
@@ -89,9 +89,8 @@ export async function processPdf(file: File): Promise<PdfImportResult> {
     for (let i = 1; i <= pageCount; i++) {
       const page = await pdf.getPage(i)
       const content = await page.getTextContent()
-      const pageText = (content.items as any[])
-        .filter((item: any) => typeof item.str === 'string')
-        .map((item: any) => item.str as string)
+      const pageText = content.items
+        .flatMap(item => ('str' in item && typeof item.str === 'string') ? [item.str] : [])
         .join(' ')
       if (pageText.trim()) textParts.push(pageText)
     }

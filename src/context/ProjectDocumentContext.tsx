@@ -190,7 +190,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.updateProjectTitle(projectId, title)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const newProject = useCallback(() => {
     undoStack.current = []
@@ -235,7 +235,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.createEpisode(projectId, number, id)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const updateEpisode = useCallback((episodeId: string, updates: Partial<Pick<Episode, 'title' | 'brief'>>) => {
     setProject(current => ({
@@ -246,7 +246,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.updateEpisode(episodeId, updates)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const deleteEpisode = useCallback((episodeId: string) => {
     setProject(current => ({
@@ -259,7 +259,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.deleteEpisode(episodeId)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const addPage = useCallback((episodeId: string) => {
     const id = genId()
@@ -278,7 +278,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.createPage(episodeId, number, id)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const updatePage = useCallback((episodeId: string, pageId: string, updates: Partial<Pick<Page, 'layoutNote'>>) => {
     setProject(current => ({
@@ -296,7 +296,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.updatePage(pageId, { layout_note: updates.layoutNote })
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const deletePage = useCallback((episodeId: string, pageId: string) => {
     setProject(current => ({
@@ -316,7 +316,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.deletePage(pageId)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const reorderPages = useCallback((episodeId: string, orderedPageIds: string[]) => {
     setProject(current => ({
@@ -339,7 +339,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
         void svc.updatePage(id, { number: index + 1 })
       })
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const reorderPanels = useCallback((episodeId: string, pageId: string, orderedPanelIds: string[]) => {
     setProject(current => ({
@@ -369,7 +369,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
         void svc.updatePanel(id, { order: index + 1 })
       })
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const addPanel = useCallback((episodeId: string, pageId: string, shot: string) => {
     const id = genId()
@@ -399,7 +399,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.createPanel(pageId, number, shot, id)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const updatePanel = useCallback((episodeId: string, pageId: string, panelId: string, updates: Partial<Pick<Panel, 'shot' | 'description' | 'status' | 'panelType' | 'assetUrl' | 'changeRequests' | 'revisions'>>) => {
     setProject(current => ({
@@ -429,7 +429,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
       if (updates.assetUrl !== undefined) remoteUpdates.asset_url = updates.assetUrl
       void svc.updatePanel(panelId, remoteUpdates)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const deletePanel = useCallback((episodeId: string, pageId: string, panelId: string) => {
     setProject(current => ({
@@ -456,7 +456,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.deletePanel(panelId)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const addContentBlock = useCallback((episodeId: string, pageId: string, panelId: string, type: ContentBlock['type']) => {
     const id = genId()
@@ -497,7 +497,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.createContentBlock(panelId, type, order, id)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const updateContentBlock = useCallback((episodeId: string, pageId: string, panelId: string, blockId: string, updates: Partial<Omit<ContentBlock, 'id' | 'type'>>) => {
     setProject(current => ({
@@ -533,7 +533,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
         text: updates.text,
       })
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const deleteContentBlock = useCallback((episodeId: string, pageId: string, panelId: string, blockId: string) => {
     setProject(current => ({
@@ -565,7 +565,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.deleteContentBlock(blockId)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const addCharacter = useCallback((character: Omit<Character, 'id'>) => {
     const id = genId()
@@ -574,7 +574,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.createCharacter(projectId, character, id)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const updateCharacter = useCallback((id: string, updates: Partial<Omit<Character, 'id'>>) => {
     setProject(current => ({
@@ -585,7 +585,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.updateCharacter(id, updates)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const deleteCharacter = useCallback((id: string) => {
     setProject(current => ({ ...current, characters: current.characters.filter(character => character.id !== id) }))
@@ -593,14 +593,14 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
     if (projectId) {
       void svc.deleteCharacter(id)
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const addThread = useCallback((thread: Thread) => {
     setProject(current => ({
       ...current,
       threads: [...current.threads, thread],
     }))
-  }, [])
+  }, [setProject])
 
   const updateThread = useCallback((threadId: string, updates: Partial<Pick<Thread, 'status'>>) => {
     setProject(current => ({
@@ -613,7 +613,7 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
         void svc.updateThreadStatus(threadId, updates.status)
       }
     }
-  }, [projectId])
+  }, [projectId, setProject])
 
   const addMessage = useCallback((threadId: string, message: Message) => {
     setProject(current => ({
@@ -622,15 +622,15 @@ export function ProjectDocumentProvider({ children, projectId }: ProviderProps) 
         t.id === threadId ? { ...t, messages: [...t.messages, message] } : t
       ),
     }))
-  }, [])
+  }, [setProject])
 
   const updateStoryBible = useCallback((bible: StoryBible) => {
     setProject(current => ({ ...current, storyBible: bible }))
-  }, [])
+  }, [setProject])
 
   const applyScriptImport = useCallback((record: ScriptImportRecord, strategy: 'replace' | 'append' | 'merge') => {
     setProject(current => applyScriptImportToProject(record, strategy, current))
-  }, [])
+  }, [setProject])
 
   const setEpisodeDeadline = useCallback((episodeId: string, deadline: string | undefined, assignedRole?: ProductionRole) => {
     setProject(prev => ({

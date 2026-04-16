@@ -2,7 +2,7 @@ import { memo, useRef } from 'react'
 import { Download, Upload, AlertCircle, Check } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import { usePreferences } from '../../context/PreferencesContext'
-import { isSupabaseConfigured } from '../../lib/supabase'
+import { backendMode, backendModeDescription, isSupabaseConfigured } from '../../lib/supabase'
 
 interface ProjectActions {
   title: string
@@ -49,10 +49,16 @@ function DataTab({ projectActions, status, setStatus }: DataTabProps) {
 
       <div className="rounded-2xl border border-ink-border bg-ink-panel p-5">
         <p className="text-sm text-ink-light font-sans">Connection mode</p>
+        <p className="text-[11px] uppercase tracking-wider text-ink-gold font-sans mt-2">
+          {backendMode === 'supabase' ? 'Supabase connected' : 'Offline mode'}
+        </p>
+        <p className="text-xs text-ink-text font-sans mt-2 leading-relaxed">
+          {backendModeDescription}
+        </p>
         <p className="text-xs text-ink-text font-sans mt-2 leading-relaxed">
           {isSupabaseConfigured
-            ? 'Supabase is connected, so profile changes sync to your account.'
-            : 'You are in offline demo mode, so profile and settings changes stay on this device.'}
+            ? 'Profile changes sync to your account and collaboration features use the backend.'
+            : 'Profile changes, settings, and project data stay on this device until you add both Supabase env vars in `.env.local`.'}
         </p>
       </div>
 

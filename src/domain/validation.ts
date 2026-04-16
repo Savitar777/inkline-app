@@ -217,7 +217,7 @@ function parseCharacter(value: unknown, index: number): Character {
 function parseMessage(value: unknown, index: number): Message {
   const message = asRecord(value, `messages[${index}]`)
   const sender = asString(message.sender, `messages[${index}].sender`)
-  if (!['writer', 'artist'].includes(sender)) {
+  if (!['writer', 'artist', 'letterer', 'colorist'].includes(sender)) {
     throw new ProjectImportError('invalid_shape', `messages[${index}].sender is invalid.`)
   }
 

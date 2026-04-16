@@ -224,6 +224,9 @@ function VirtualizedPageList({
 }: VirtualizedPageListProps) {
   const parentRef = useRef<HTMLDivElement>(null)
 
+  // TanStack Virtual exposes imperative helpers; the React compiler lint rule
+  // is expected here and safe for this windowed list usage.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: pages.length,
     getScrollElement: () => parentRef.current,

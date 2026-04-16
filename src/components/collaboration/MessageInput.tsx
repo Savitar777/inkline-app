@@ -1,5 +1,5 @@
-import { memo, useRef } from 'react'
-import { Send, Paperclip, Image } from '../../icons'
+import { memo } from 'react'
+import { Send, Image } from '../../icons'
 
 interface MessageInputProps {
   inputText: string
@@ -8,7 +8,6 @@ interface MessageInputProps {
   onInputChange: (value: string) => void
   onSend: () => void
   onToggleUpload: () => void
-  onFileSelect: (file: File) => void
   onBroadcastTyping: () => void
 }
 
@@ -19,36 +18,22 @@ function MessageInput({
   onInputChange,
   onSend,
   onToggleUpload,
-  onFileSelect,
   onBroadcastTyping,
 }: MessageInputProps) {
-  const uploadInputRef = useRef<HTMLInputElement>(null)
+  const artworkActionLabel = showUpload ? 'Hide draft artwork upload' : 'Upload draft artwork'
 
   return (
     <div className="px-6 py-3 border-t border-ink-border bg-ink-dark/50">
       <div className="flex items-center gap-3 bg-ink-panel rounded-lg px-4 py-2.5 border border-ink-border">
         <button
-          aria-label="Attach file (coming soon)"
-          disabled
-          title="General file attachments coming soon"
-          className="text-ink-muted/40 cursor-not-allowed"
-        >
-          <Paperclip size={16} />
-        </button>
-        <button
-          aria-label="Upload draft artwork"
+          type="button"
+          aria-label={artworkActionLabel}
+          title={artworkActionLabel}
           onClick={onToggleUpload}
           className={`transition-colors ${showUpload ? 'text-ink-gold' : 'text-ink-muted hover:text-ink-text'}`}
         >
           <Image size={16} />
         </button>
-        <input
-          ref={uploadInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={e => { const f = e.target.files?.[0]; if (f) { onFileSelect(f); onToggleUpload() } }}
-        />
         <input
           type="text"
           placeholder="Type a message..."
@@ -66,6 +51,7 @@ function MessageInput({
           className="flex-1 bg-transparent text-sm font-sans text-ink-light placeholder:text-ink-muted outline-none"
         />
         <button
+          type="button"
           aria-label="Send message"
           onClick={onSend}
           disabled={sending || !inputText.trim()}

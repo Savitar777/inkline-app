@@ -56,7 +56,15 @@ export function deriveAutoTags(
 
   const lowerName = fileName.toLowerCase()
   for (const char of project.characters) {
-    if (char.name.length >= 2 && lowerName.includes(char.name.toLowerCase())) {
+    const candidateNames = [
+      char.name.toLowerCase(),
+      ...char.name
+        .toLowerCase()
+        .split(/[^a-z0-9]+/)
+        .filter(token => token.length >= 2),
+    ]
+
+    if (candidateNames.some(candidate => lowerName.includes(candidate))) {
       tags.push(`char:${char.name}`)
     }
   }

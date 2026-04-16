@@ -47,7 +47,7 @@ function UploadModal({
               onChange={e => onSelectPanel(e.target.value)}
               className="w-full bg-ink-panel border border-ink-border rounded px-2.5 py-1.5 text-xs font-sans text-ink-text outline-none focus:border-ink-gold/50"
             >
-              <option value="">Link to panel...</option>
+              <option value="">Link draft to panel...</option>
               {allPanels.map(p => (
                 <option key={p.id} value={p.id}>P{p.pageNumber} / Panel {p.number}</option>
               ))}
@@ -55,13 +55,15 @@ function UploadModal({
           )}
           <div className="flex gap-2">
             <button
+              type="button"
               onClick={onAttachUpload}
               disabled={uploading || (isSupabaseConfigured && !selectedPanelId)}
               className="flex-1 py-1.5 rounded text-xs font-sans bg-ink-gold text-ink-black font-semibold hover:bg-ink-gold-dim transition-colors disabled:opacity-50"
             >
-              {uploading ? 'Uploading...' : 'Send as Draft'}
+              {uploading ? 'Uploading...' : 'Send Draft Artwork'}
             </button>
             <button
+              type="button"
               onClick={onCancel}
               className="px-3 py-1.5 rounded text-xs font-sans text-ink-muted hover:text-ink-text transition-colors"
             >
@@ -73,7 +75,7 @@ function UploadModal({
         <FileUploadZone
           accept="panel-assets"
           onFiles={() => onClickSelect()}
-          label="Drop artwork here or click to select"
+          label="Drop draft artwork here or click to select"
         />
       )}
     </div>

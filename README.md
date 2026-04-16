@@ -303,16 +303,18 @@ npm run build
 
 ### Offline mode
 
-No configuration needed. The app detects a missing `VITE_SUPABASE_URL` and runs fully offline with localStorage persistence.
+No configuration needed. If either `VITE_SUPABASE_URL` or `VITE_SUPABASE_ANON_KEY` is missing, Inkline runs fully offline with localStorage persistence on the current device.
 
 ### Supabase mode
 
-Create `.env.local`:
+Copy `.env.example` to `.env.local` and provide both values:
 
 ```env
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
 ```
+
+When both values are configured, Inkline enables Supabase Auth, Realtime collaboration, and Storage-backed uploads. You can also confirm the active backend mode in `Settings -> Data`.
 
 ---
 

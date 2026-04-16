@@ -1,4 +1,4 @@
-import { memo, useState, useEffect, useCallback } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { Trash2, FileText } from '../../icons'
 import FileUploadZone from '../FileUploadZone'
 import { uploadReferenceFile, listReferenceFiles, deleteReferenceFile } from '../../services/referenceFileService'
@@ -21,12 +21,20 @@ function ReferencePanel({ projectId, episodeId }: ReferencePanelProps) {
   const [files, setFiles] = useState<UploadedFile[]>([])
   const [uploading, setUploading] = useState(false)
 
-  const loadFiles = useCallback(async () => {
-    const result = await listReferenceFiles(projectId, episodeId ?? undefined)
-    setFiles(result)
-  }, [projectId, episodeId])
+  useEffect(() => {
+    let cancelled = false
 
-  useEffect(() => { void loadFiles() }, [loadFiles])
+    void (async () => {
+      const result = await listReferenceFiles(projectId, episodeId ?? undefined)
+      if (!cancelled) {
+        setFiles(result)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [projectId, episodeId])
 
   const handleUpload = async (newFiles: File[]) => {
     if (!profile) return

@@ -1,8 +1,7 @@
-import { memo, useState, useEffect, useCallback, useMemo } from 'react'
+import { memo, useState, useEffect, useMemo } from 'react'
 import { X, Trash2, FileText, Image as ImageIcon } from '../../icons'
 import { listProjectFiles, deleteFileRecord, searchProjectFiles, updateFileTags } from '../../services/fileMetadataService'
 import { useToast } from '../../context/ToastContext'
-import { useProject } from '../../context/ProjectContext'
 import AssetSearchBar from '../assets/AssetSearchBar'
 import TagChips from '../assets/TagChips'
 import TagEditor from '../assets/TagEditor'
@@ -29,25 +28,38 @@ function isImageMime(mime: string): boolean {
 
 function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProps) {
   const { showToast } = useToast()
-  const { project: _project } = useProject()
   const [files, setFiles] = useState<UploadedFile[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loadedKey, setLoadedKey] = useState<string | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [activeTags, setActiveTags] = useState<string[]>([])
   const [expandedFileId, setExpandedFileId] = useState<string | null>(null)
-
-  const loadFiles = useCallback(async () => {
-    setLoading(true)
-    const result = (searchQuery || activeTags.length > 0)
-      ? await searchProjectFiles(projectId, searchQuery, activeTags)
-      : await listProjectFiles(projectId)
-    setFiles(result)
-    setLoading(false)
-  }, [projectId, searchQuery, activeTags])
+  const requestKey = useMemo(() => (
+    open
+      ? `${projectId}:${searchQuery.trim()}:${[...activeTags].sort().join('|')}`
+      : null
+  ), [open, projectId, searchQuery, activeTags])
+  const loading = requestKey !== null && loadedKey !== requestKey
 
   useEffect(() => {
-    if (open) void loadFiles()
-  }, [open, loadFiles])
+    if (!open || !requestKey) return
+
+    let cancelled = false
+
+    void (async () => {
+      const result = (searchQuery || activeTags.length > 0)
+        ? await searchProjectFiles(projectId, searchQuery, activeTags)
+        : await listProjectFiles(projectId)
+
+      if (!cancelled) {
+        setFiles(result)
+        setLoadedKey(requestKey)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [open, requestKey, projectId, searchQuery, activeTags])
 
   const handleDelete = async (fileId: string) => {
     await deleteFileRecord(fileId, projectId)

@@ -1,5 +1,6 @@
 import { supabase, isSupabaseConfigured } from '../lib/supabase'
 import type { FileCategory, UploadedFile, FileMetadata } from '../types/files'
+import type { Database } from '../lib/database.types'
 import { getStorageAdapter } from './fileStorageService'
 
 /* ─── Rate Limiter (matches projectService pattern) ─── */
@@ -24,6 +25,7 @@ function handleError(context: string, error: unknown): void {
 /* ─── Offline Fallback Store ─── */
 
 const OFFLINE_PREFIX = 'inkline-file-records-'
+type UploadedFileRow = Database['public']['Tables']['uploaded_files']['Row']
 
 function getOfflineRecords(projectId: string): UploadedFile[] {
   try {
@@ -70,7 +72,9 @@ export async function createFileRecord(
       size_bytes: record.sizeBytes,
       uploaded_by: record.uploadedBy,
       status: record.status,
+      error_message: record.errorMessage ?? null,
       metadata: record.metadata as Record<string, unknown>,
+      tags: [...new Set([...(record.metadata.tags ?? []), ...(record.metadata.autoTags ?? [])])],
     })
     .select('*')
     .single()
@@ -229,12 +233,16 @@ function bucketForCategory(category: FileCategory): string {
   }
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function mapRow(row: any): UploadedFile {
+function mapRow(row: UploadedFileRow): UploadedFile {
+  const metadata = { ...(row.metadata as FileMetadata) }
+  if (row.tags.length > 0 && !metadata.tags) {
+    metadata.tags = row.tags
+  }
+
   return {
     id: row.id,
     projectId: row.project_id,
-    category: row.category,
+    category: row.category as FileCategory,
     originalName: row.original_name,
     storagePath: row.storage_path,
     publicUrl: row.public_url,
@@ -243,6 +251,7 @@ function mapRow(row: any): UploadedFile {
     uploadedBy: row.uploaded_by,
     uploadedAt: row.created_at,
     status: row.status,
-    metadata: (row.metadata ?? {}) as FileMetadata,
+    errorMessage: row.error_message ?? undefined,
+    metadata,
   }
 }

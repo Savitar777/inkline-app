@@ -483,7 +483,7 @@ export async function inviteMember(
   if (!inviteLimiter()) return 'Rate limited — too many invites. Please wait a moment.'
   // Use RPC function to look up user by email (bypasses restrictive users RLS)
   const { data: invitee, error: lookupErr } = await supabase
-    .rpc('find_user_by_email', { lookup_email: email })
+    .rpc('find_user_by_email', { lookup_email: email, for_project_id: projectId })
 
   if (lookupErr || !invitee) return 'No user found with that email.'
 

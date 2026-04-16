@@ -8,9 +8,9 @@ export type AssetStatus = 'draft' | 'approved' | 'rejected'
 export type PanelStatus = 'draft' | 'submitted' | 'in_progress' | 'draft_received' | 'changes_requested' | 'approved'
 export type FileProcessingStatus = 'pending' | 'validating' | 'processing' | 'uploading' | 'complete' | 'error' | 'offline'
 
-// NOTE: This file is a hand-written placeholder.
-// Replace it with the output of `supabase gen types typescript` once connected
-// to a real Supabase project for full type-safety.
+// NOTE: This file is a hand-maintained snapshot aligned with the checked-in
+// Supabase schema. Replace it with `supabase gen types typescript` whenever a
+// live project is available so generated types stay in sync automatically.
 
 export interface Database {
   public: {
@@ -164,32 +164,19 @@ export interface Database {
           size_bytes: number
           uploaded_by: string
           status: FileProcessingStatus
+          error_message: string | null
           metadata: Record<string, unknown>
+          tags: string[]
           created_at: string
         }
         Insert: Omit<Database['public']['Tables']['uploaded_files']['Row'], 'created_at'>
         Update: Partial<Database['public']['Tables']['uploaded_files']['Insert']>
       }
-      script_imports: {
-        Row: {
-          id: string
-          project_id: string
-          file_id: string | null
-          format: string
-          mode: string
-          raw_text: string | null
-          mapping_result: Record<string, unknown> | null
-          imported_at: string
-          imported_by: string
-        }
-        Insert: Omit<Database['public']['Tables']['script_imports']['Row'], 'imported_at'>
-        Update: Partial<Database['public']['Tables']['script_imports']['Insert']>
-      }
     }
     Views: Record<string, never>
     Functions: {
       find_user_by_email: {
-        Args: { lookup_email: string }
+        Args: { lookup_email: string; for_project_id?: string | null }
         Returns: string | null
       }
       is_project_member: {

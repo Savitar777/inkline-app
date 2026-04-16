@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+/* eslint-disable react-refresh/only-export-components */
+import { createContext, useContext, useState, useCallback, useEffect, useMemo, type ReactNode } from 'react'
 import type { ContextualTip } from '../data/tutorials/types'
 import type { TutorialDifficulty } from '../data/tutorials/types'
 
@@ -58,9 +59,9 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     saveState(state)
   }, [state])
 
-  const completedSet = new Set(state.completedModuleIds)
-  const dismissedSet = new Set(state.dismissedTipIds)
-  const visitedSet = new Set(state.visitedViews)
+  const completedSet = useMemo(() => new Set(state.completedModuleIds), [state.completedModuleIds])
+  const dismissedSet = useMemo(() => new Set(state.dismissedTipIds), [state.dismissedTipIds])
+  const visitedSet = useMemo(() => new Set(state.visitedViews), [state.visitedViews])
 
   const markModuleComplete = useCallback((id: string) => {
     setState(prev => prev.completedModuleIds.includes(id)
@@ -120,8 +121,7 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
     return true
   }, [state.tipsEnabled, dismissedSet, visitedSet])
 
-  return (
-    <TutorialContext value={{
+  const contextValue = useMemo(() => ({
       completedModuleIds: completedSet,
       dismissedTipIds: dismissedSet,
       tipsEnabled: state.tipsEnabled,
@@ -134,7 +134,23 @@ export function TutorialProvider({ children }: { children: ReactNode }) {
       setDifficulty,
       resetProgress,
       isTipVisible,
-    }}>
+    }), [
+      completedSet,
+      dismissedSet,
+      state.tipsEnabled,
+      state.difficulty,
+      markModuleComplete,
+      markModuleIncomplete,
+      dismissTip,
+      markViewVisited,
+      setTipsEnabled,
+      setDifficulty,
+      resetProgress,
+      isTipVisible,
+    ])
+
+  return (
+    <TutorialContext value={contextValue}>
       {children}
     </TutorialContext>
   )
