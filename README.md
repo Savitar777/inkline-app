@@ -159,11 +159,18 @@ All heavy libraries (mammoth, pdfjs-dist, marked, html2canvas-pro, jsPDF, JSZip)
 ### Performance & Optimization (Phase 3)
 - **Context split** — `ProjectDocumentContext` split into State + Actions contexts to minimize re-renders; actions context is referentially stable
 - **React.memo** on 48 components (up from 6) with shallow prop comparison
+- **Hot-path hook containment** — workspace shell, Script Editor, Collaboration, and Compile & Export prefer `useProjectState()` / `useProjectActions()` over the merged `useProject()` hook in render-sensitive paths
+- **Idle route preloading** — Editor warms Collaboration, Collaboration warms Compile & Export, and Settings still preloads on profile hover/focus
+- **Bundle containment** — export, capture, file-save, Supabase, and document-processing libraries are isolated into named lazy chunks so the initial shell avoids oversized bundles
+- **Deferred compile preflight** — export preflight recalculates on idle instead of synchronously on every relevant render
 - **Supabase query optimization** — field-limited selects, pagination on list endpoints (50/100 limits)
 - **Realtime panel assets** — collaborators see new artwork uploads in real-time via Supabase Realtime subscription
 - **localStorage debounce** — increased from 250ms to 2s with flush-on-blur/close for large project performance
 - **Proactive session refresh** — 45-minute interval prevents token expiry on long sessions
 - **Image lazy loading** — `loading="lazy"` on all panel artwork images
+- **Shared loading surfaces** — shell/page/section skeletons plus reusable async button labels standardize perceived-loading behavior across auth, dashboard, export, and asset flows
+- **Stale-while-refresh UI** — the Asset Library keeps existing results visible during refreshes instead of blanking out the drawer
+- **Motion tuning** — faster 160–200ms shell/overlay timings, lighter shimmer, and removal of persistent typing pulse noise
 - **Terser minification** — production builds strip console logs and debugger statements
 - **Vercel deployment config** — immutable cache headers for hashed assets, SPA rewrites
 - **PWA manifest** — standalone app capability with theme colors

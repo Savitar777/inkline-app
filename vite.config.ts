@@ -15,8 +15,13 @@ export default defineConfig({
       output: {
         manualChunks(id: string) {
           if (id.includes('@supabase/supabase-js')) return 'supabase'
-          if (id.includes('jspdf') || id.includes('html2canvas-pro')) return 'export'
+          if (id.includes('html2canvas-pro')) return 'capture'
+          if (id.includes('jspdf')) return 'pdf-export'
           if (id.includes('jszip')) return 'zip'
+          if (id.includes('file-saver')) return 'file-save'
+          if (id.includes('pdfjs-dist')) return 'document-pdf'
+          if (id.includes('mammoth')) return 'document-docx'
+          if (id.includes('marked')) return 'document-markdown'
         },
       },
     },

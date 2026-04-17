@@ -9,16 +9,15 @@ function isUrl(str: string | undefined): boolean {
 
 interface MessageListProps {
   messages: Message[]
-  liveMessagesByThread: Record<string, Message[]>
-  resolvedActiveThread: string
+  activeThreadId: string
 }
 
-function MessageList({ messages, liveMessagesByThread, resolvedActiveThread }: MessageListProps) {
+function MessageList({ messages, activeThreadId }: MessageListProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [liveMessagesByThread, resolvedActiveThread])
+  }, [activeThreadId, messages.length])
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">

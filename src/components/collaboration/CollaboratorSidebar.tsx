@@ -99,7 +99,7 @@ function CollaboratorSidebar({
                 {c.name[0]}
               </div>
               {typingUsers.has(c.id) && (
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-ink-dark bg-status-approved animate-pulse" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-ink-dark bg-status-approved" />
               )}
             </div>
             <div>

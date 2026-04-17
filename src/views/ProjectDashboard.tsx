@@ -8,6 +8,7 @@ import type { ProjectFormat, UserRole } from '../lib/database.types'
 import SettingsPanel from '../components/SettingsPanel'
 import ProfileAvatar from '../components/ProfileAvatar'
 import OnboardingFlow, { hasCompletedOnboarding } from '../components/OnboardingFlow'
+import LoadingSurface from '../components/LoadingSurface'
 
 const FORMAT_LABELS: Record<ProjectFormat, string> = {
   webtoon: 'Webtoon',
@@ -219,11 +220,11 @@ function ProjectDashboard({ onOpenProject }: Props) {
 
         {/* Project grid */}
         {loading ? (
-          <div className={`grid ${preferences.compactDashboard ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3' : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4'}`}>
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-36 rounded-xl bg-ink-dark border border-ink-border ink-shimmer" />
-            ))}
-          </div>
+          <LoadingSurface
+            variant="section"
+            label="Loading projects"
+            lines={preferences.compactDashboard ? 4 : 3}
+          />
         ) : projects.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-24 text-center">
             <div className="w-14 h-14 rounded-xl bg-ink-dark border border-ink-border flex items-center justify-center mb-4">

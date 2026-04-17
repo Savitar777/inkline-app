@@ -1,5 +1,6 @@
 import { memo } from 'react'
 import { Google } from '../icons'
+import AsyncActionLabel from './AsyncActionLabel'
 
 interface Props {
   onClick: () => void
@@ -14,11 +15,9 @@ interface Props {
  * @see https://developers.google.com/identity/branding-guidelines
  */
 function GoogleAuthButton({ onClick, loading, disabled, mode }: Props) {
-  const label = loading
-    ? 'Redirecting…'
-    : mode === 'signin'
-      ? 'Sign in with Google'
-      : 'Sign up with Google'
+  const label = mode === 'signin'
+    ? 'Sign in with Google'
+    : 'Sign up with Google'
 
   return (
     <button
@@ -37,7 +36,7 @@ function GoogleAuthButton({ onClick, loading, disabled, mode }: Props) {
 
       {/* Label */}
       <span className="flex-1 text-sm font-medium text-[#E3E3E3] tracking-[0.25px] pr-4 text-center">
-        {label}
+        <AsyncActionLabel loading={loading} idleLabel={label} loadingLabel="Redirecting…" />
       </span>
     </button>
   )

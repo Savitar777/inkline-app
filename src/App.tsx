@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { BarChart, Bell, BookOpen, ChevronLeft, Download, Layers, MessageSquare, PenLine, Search, Upload, Users } from './icons'
-import { ProjectProvider, useProject } from './context/ProjectContext'
+import { ProjectProvider } from './context/ProjectContext'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import { PreferencesProvider, useResolvedPlatformMode } from './context/PreferencesContext'
 import { WorkspaceProvider, useWorkspace } from './context/WorkspaceContext'
@@ -14,11 +14,14 @@ import ProfileAvatar from './components/ProfileAvatar'
 import WorkspaceActivityRail from './components/workspace/WorkspaceActivityRail'
 import CommandPalette from './components/workspace/CommandPalette'
 import { useToast } from './context/ToastContext'
+import LoadingSurface from './components/LoadingSurface'
 import { setServiceErrorCallback } from './services/projectService'
 import { formatShortcut, matchesShortcut } from './domain/platform'
 import { getEpisodeById, getProjectActivitySummary } from './domain/selectors'
 import type { WorkspaceView } from './types/preferences'
 import { useBreakpoint } from './hooks/useBreakpoint'
+import { getIdlePreloadTargets, scheduleIdleTask } from './lib/viewPreload'
+import { useProjectActions, useProjectState } from './context/ProjectContext'
 
 const loadScriptEditor = () => import('./views/ScriptEditor')
 const loadCollaboration = () => import('./views/Collaboration')
@@ -37,6 +40,15 @@ const SettingsPanel = lazy(loadSettingsPanel)
 const StoryBibleView = lazy(loadStoryBible)
 const CharacterBibleView = lazy(loadCharacterBible)
 const ProductionTrackerView = lazy(loadProductionTracker)
+
+const viewPreloaders: Record<WorkspaceView, () => Promise<unknown>> = {
+  editor: loadScriptEditor,
+  collab: loadCollaboration,
+  compile: loadCompileExport,
+  'story-bible': loadStoryBible,
+  'character-bible': loadCharacterBible,
+  production: loadProductionTracker,
+}
 
 const viewTabs: Array<{
   id: WorkspaceView
@@ -60,35 +72,13 @@ function isTypingTarget(target: EventTarget | null) {
 }
 
 function ShellFallback() {
-  return (
-    <div className="flex h-full bg-ink-black">
-      {/* Sidebar skeleton */}
-      <div className="hidden md:flex w-56 flex-col border-r border-ink-border bg-ink-dark p-4 gap-3">
-        <div className="h-5 w-24 rounded ink-shimmer" />
-        <div className="h-4 w-32 rounded ink-shimmer" />
-        <div className="mt-4 space-y-2">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-8 rounded-lg ink-shimmer" />
-          ))}
-        </div>
-      </div>
-      {/* Content skeleton */}
-      <div className="flex-1 p-6 space-y-4">
-        <div className="h-6 w-48 rounded ink-shimmer" />
-        <div className="h-4 w-64 rounded ink-shimmer" />
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[1, 2, 3, 4].map(i => (
-            <div key={i} className="h-28 rounded-xl border border-ink-border bg-ink-dark ink-shimmer" />
-          ))}
-        </div>
-      </div>
-    </div>
-  )
+  return <LoadingSurface variant="shell" label="Loading workspace" />
 }
 
 function NavBar({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
   const { profile } = useAuth()
-  const { project, exportProject, importProject, setProjectTitle } = useProject()
+  const { project } = useProjectState()
+  const { exportProject, importProject, setProjectTitle } = useProjectActions()
   const { activeView, setActiveView, openCommandPalette } = useWorkspace()
   const platformMode = useResolvedPlatformMode()
   const [editingTitle, setEditingTitle] = useState(false)
@@ -335,17 +325,68 @@ const mobileTabIcons: Record<WorkspaceView, (p: { size: number; className?: stri
 }
 
 function WorkspaceShell({ onBackToDashboard }: { onBackToDashboard?: () => void }) {
-  const { activeEpisodeId, activeProjectId, activeView, commandPaletteOpen, runAction, setActiveView, openCommandPalette } = useWorkspace()
-  const { project, loading, addEpisode, addPage, addPanel, undo, redo } = useProject()
-  const platformMode = useResolvedPlatformMode()
+  const { activeProjectId, activeView, commandPaletteOpen, setActiveView } = useWorkspace()
   const breakpoint = useBreakpoint()
   const isMobile = breakpoint === 'mobile'
-  const activity = useMemo(() => getProjectActivitySummary(project, activeEpisodeId), [activeEpisodeId, project])
+
+  useEffect(() => {
+    const preloadTargets = getIdlePreloadTargets(activeView)
+    if (preloadTargets.length === 0) return
+
+    return scheduleIdleTask(() => {
+      for (const view of preloadTargets) {
+        void viewPreloaders[view]()
+      }
+    })
+  }, [activeView])
+
+  return (
+    <div className="flex h-screen flex-col bg-ink-black">
+      <WorkspaceShortcutBridge />
+      <NavBar onBackToDashboard={onBackToDashboard} />
+      <WorkspaceActivityRailBridge />
+      <main className="flex-1 overflow-hidden">
+        <ProjectLoadingGate
+          activeProjectId={activeProjectId}
+          activeView={activeView}
+          onGoToCollab={() => setActiveView('collab')}
+        />
+      </main>
+      {isMobile && (
+        <nav className="flex border-t border-ink-border bg-ink-dark pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
+          {viewTabs.map(tab => {
+            const Icon = mobileTabIcons[tab.id]
+            const active = activeView === tab.id
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveView(tab.id)}
+                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-sans transition-colors ${
+                  active ? 'text-ink-gold' : 'text-ink-muted'
+                }`}
+              >
+                <Icon size={18} />
+                {tab.shortLabel}
+              </button>
+            )
+          })}
+        </nav>
+      )}
+      {commandPaletteOpen && <CommandPalette />}
+    </div>
+  )
+}
+
+function WorkspaceShortcutBridge() {
+  const { openCommandPalette, runAction, setActiveView } = useWorkspace()
+  const { activeEpisodeId, project } = useProjectState()
+  const { addEpisode, addPage, addPanel, redo, undo } = useProjectActions()
+  const platformMode = useResolvedPlatformMode()
   const activeEpisode = getEpisodeById(project, activeEpisodeId)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      // Undo/redo works even when typing
       if (matchesShortcut(event, platformMode, { key: 'z' })) {
         event.preventDefault()
         undo()
@@ -444,55 +485,50 @@ function WorkspaceShell({ onBackToDashboard }: { onBackToDashboard?: () => void 
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeEpisode, addEpisode, addPage, addPanel, openCommandPalette, platformMode, runAction, setActiveView, undo, redo])
+  }, [activeEpisode, addEpisode, addPage, addPanel, openCommandPalette, platformMode, redo, runAction, setActiveView, undo])
+
+  return null
+}
+
+function WorkspaceActivityRailBridge() {
+  const { activeEpisodeId, project } = useProjectState()
+  const activity = useMemo(() => getProjectActivitySummary(project, activeEpisodeId), [activeEpisodeId, project])
+
+  return <WorkspaceActivityRail summary={activity} />
+}
+
+function ProjectLoadingGate({
+  activeProjectId,
+  activeView,
+  onGoToCollab,
+}: {
+  activeProjectId: string | null
+  activeView: WorkspaceView
+  onGoToCollab: () => void
+}) {
+  const { loading } = useProjectState()
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-5 w-5 animate-spin rounded-full border-2 border-ink-gold border-t-transparent" />
+          <span className="text-sm text-ink-muted">Loading project…</span>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="flex h-screen flex-col bg-ink-black">
-      <NavBar onBackToDashboard={onBackToDashboard} />
-      <WorkspaceActivityRail summary={activity} />
-      <main className="flex-1 overflow-hidden">
-        {loading ? (
-          <div className="flex h-full items-center justify-center">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-ink-gold border-t-transparent" />
-              <span className="text-sm text-ink-muted">Loading project…</span>
-            </div>
-          </div>
-        ) : (
-          <div key={`${activeProjectId ?? 'offline'}:${activeView}`} className="ink-stage-enter h-full">
-            <Suspense fallback={<ShellFallback />}>
-              {activeView === 'editor' && <ScriptEditor onGoToCollab={() => setActiveView('collab')} />}
-              {activeView === 'story-bible' && <StoryBibleView />}
-              {activeView === 'character-bible' && <CharacterBibleView />}
-              {activeView === 'collab' && <Collaboration />}
-              {activeView === 'compile' && <CompileExport />}
-              {activeView === 'production' && <ProductionTrackerView />}
-            </Suspense>
-          </div>
-        )}
-      </main>
-      {isMobile && (
-        <nav className="flex border-t border-ink-border bg-ink-dark pb-[env(safe-area-inset-bottom)]" aria-label="Mobile navigation">
-          {viewTabs.map(tab => {
-            const Icon = mobileTabIcons[tab.id]
-            const active = activeView === tab.id
-            return (
-              <button
-                key={tab.id}
-                type="button"
-                onClick={() => setActiveView(tab.id)}
-                className={`flex flex-1 flex-col items-center gap-1 py-2.5 text-[10px] font-sans transition-colors ${
-                  active ? 'text-ink-gold' : 'text-ink-muted'
-                }`}
-              >
-                <Icon size={18} />
-                {tab.shortLabel}
-              </button>
-            )
-          })}
-        </nav>
-      )}
-      {commandPaletteOpen && <CommandPalette />}
+    <div key={`${activeProjectId ?? 'offline'}:${activeView}`} className="ink-stage-enter h-full">
+      <Suspense fallback={<ShellFallback />}>
+        {activeView === 'editor' && <ScriptEditor onGoToCollab={onGoToCollab} />}
+        {activeView === 'story-bible' && <StoryBibleView />}
+        {activeView === 'character-bible' && <CharacterBibleView />}
+        {activeView === 'collab' && <Collaboration />}
+        {activeView === 'compile' && <CompileExport />}
+        {activeView === 'production' && <ProductionTrackerView />}
+      </Suspense>
     </div>
   )
 }

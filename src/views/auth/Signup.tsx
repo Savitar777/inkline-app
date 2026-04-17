@@ -2,6 +2,7 @@ import { memo, useState } from 'react'
 import { PenLine, Check } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import GoogleAuthButton from '../../components/GoogleAuthButton'
+import AsyncActionLabel from '../../components/AsyncActionLabel'
 import type { UserRole } from '../../lib/database.types'
 
 interface Props {
@@ -172,7 +173,7 @@ function Signup({ onGoToLogin }: Props) {
               disabled={loading || googleLoading}
               className="w-full bg-ink-gold text-ink-black font-sans font-semibold text-sm rounded-lg py-2.5 hover:bg-ink-gold-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
-              {loading ? 'Creating account…' : 'Create Account'}
+              <AsyncActionLabel loading={loading} idleLabel="Create Account" loadingLabel="Creating account…" />
             </button>
           </form>
         </div>

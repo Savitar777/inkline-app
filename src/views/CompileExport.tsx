@@ -11,7 +11,6 @@ import FormatPicker, { formats } from '../components/compile/FormatPicker'
 import PanelGrid, { type PanelThumb } from '../components/compile/PanelGrid'
 import ExportScopeDialog from '../components/compile/ExportScopeDialog'
 import AssetLibraryDrawer from '../components/compile/AssetLibraryDrawer'
-import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { generateBubblesFromContent } from '../domain/lettering'
@@ -25,6 +24,9 @@ import { getEpisodeById, getReviewablePanels } from '../domain/selectors'
 import { useToast } from '../context/ToastContext'
 import type { PanelStatus } from '../types'
 import ContextualTipBanner from '../components/ContextualTipBanner'
+import { useProjectActions, useProjectState } from '../context/ProjectContext'
+import { scheduleIdleTask } from '../lib/viewPreload'
+import AsyncActionLabel from '../components/AsyncActionLabel'
 
 /* ─── Helpers ─── */
 
@@ -37,7 +39,8 @@ function panelThumbStatus(status: PanelStatus | undefined): PanelThumb['status']
 /* ─── Component ─── */
 
 function CompileExport() {
-  const { project, activeEpisodeId, updatePanel, updateThread } = useProject()
+  const { activeEpisodeId, project } = useProjectState()
+  const { updatePanel, updateThread } = useProjectActions()
   const { user, profile } = useAuth()
   const { selectedFormat, setSelectedFormat, registerActionHandler } = useWorkspace()
   const { showToast } = useToast()
@@ -54,10 +57,15 @@ function CompileExport() {
   const [previewScale, setPreviewScale] = useState(0.5)
   const [showAssets, setShowAssets] = useState(false)
   const [showExportDialog, setShowExportDialog] = useState(false)
+  const [preflightResult, setPreflightResult] = useState<ReturnType<typeof runPreflight> | null>(null)
   const previewRef = useRef<HTMLDivElement>(null)
 
   const episode = getEpisodeById(project, activeEpisodeId)
   const spec = useMemo(() => getFormatSpec(selectedFormat), [selectedFormat])
+  const selectedFormatInfo = useMemo(
+    () => formats.find(format => format.id === selectedFormat),
+    [selectedFormat],
+  )
 
   const handleExport = useCallback(async (dialogOpts: {
     outputFormat: ExportOutputFormat
@@ -144,16 +152,22 @@ function CompileExport() {
   const allSubmitted = totalCount > 0 && panels.every(p => p.status !== 'missing')
   const allApproved = totalCount > 0 && completeCount === totalCount
 
-  const preflightResult = useMemo(
-    () => episode ? runPreflight(episode, {
-      format: selectedFormat,
-      dpi,
-      outputFormat: 'pdf',
-      colorProfile: spec.colorProfile,
-      scope: 'episode',
-    }) : null,
-    [episode, selectedFormat, dpi, spec.colorProfile],
-  )
+  useEffect(() => {
+    if (!episode) {
+      setPreflightResult(null)
+      return
+    }
+
+    return scheduleIdleTask(() => {
+      setPreflightResult(runPreflight(episode, {
+        format: selectedFormat,
+        dpi,
+        outputFormat: 'pdf',
+        colorProfile: spec.colorProfile,
+        scope: 'episode',
+      }))
+    })
+  }, [dpi, episode, selectedFormat, spec.colorProfile])
 
   const syncThreadApprovedStatus = useCallback((approvedPanelIds: Set<string>) => {
     if (!episode) return
@@ -286,7 +300,7 @@ function CompileExport() {
                 className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-sans bg-ink-gold text-ink-black font-medium hover:bg-ink-gold-dim transition-colors disabled:opacity-50"
               >
                 <Download size={14} />
-                Export
+                <AsyncActionLabel loading={exporting} idleLabel="Export" loadingLabel="Exporting…" />
               </button>
             </div>
           </div>
@@ -376,7 +390,7 @@ function CompileExport() {
             </div>
             {exporting && (
               <div className="mt-2 text-center">
-                <span className="text-xs text-ink-gold font-sans animate-pulse">Exporting...</span>
+                <span className="text-xs text-ink-gold font-sans">Capturing pages for export…</span>
               </div>
             )}
           </div>
@@ -442,13 +456,13 @@ function CompileExport() {
           <span className="text-[10px] uppercase tracking-wider text-ink-muted font-sans block mb-2">Selected Format</span>
           <div className="bg-ink-panel rounded-lg p-3 border border-ink-border">
             <div className="text-sm font-sans text-ink-gold font-medium">
-              {formats.find(f => f.id === selectedFormat)?.label}
+              {selectedFormatInfo?.label}
             </div>
             <div className="text-[11px] text-ink-text font-sans mt-1">
-              {formats.find(f => f.id === selectedFormat)?.desc}
+              {selectedFormatInfo?.desc}
             </div>
             <div className="text-[10px] text-ink-muted font-mono mt-2">
-              {formats.find(f => f.id === selectedFormat)?.specs}
+              {selectedFormatInfo?.specs}
             </div>
           </div>
         </div>

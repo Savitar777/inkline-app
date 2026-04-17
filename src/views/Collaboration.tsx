@@ -6,7 +6,6 @@ import {
   CheckCircle2,
   FileText,
 } from '../icons'
-import { useProject } from '../context/ProjectContext'
 import { useAuth } from '../context/AuthContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { supabase } from '../lib/supabase'
@@ -21,6 +20,7 @@ import { sendMessage, inviteMember, uploadPanelArtwork, fetchCollaborators } fro
 import type { Collaborator } from '../services/projectService'
 import type { Thread, Message, Panel } from '../types'
 import type { RealtimePostgresInsertPayload, RealtimePresenceState } from '@supabase/supabase-js'
+import { useProjectActions, useProjectState } from '../context/ProjectContext'
 
 import ThreadList, { statusConfig } from '../components/collaboration/ThreadList'
 import MessageList from '../components/collaboration/MessageList'
@@ -61,7 +61,8 @@ function applyThreadMessages(
 /* ─── Component ─── */
 
 function Collaboration() {
-  const { project, activeEpisodeId, updatePanel, updateThread, addMessage: addMessageToProject } = useProject()
+  const { activeEpisodeId, project } = useProjectState()
+  const { addMessage: addMessageToProject, updatePanel, updateThread } = useProjectActions()
   const { user, profile } = useAuth()
   const { activeThreadId, setActiveThreadId } = useWorkspace()
   const { showToast } = useToast()
@@ -91,6 +92,7 @@ function Collaboration() {
   const uploadInputRef = useRef<HTMLInputElement>(null)
   const typingTimeout = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const typingChannelRef = useRef<ReturnType<typeof supabase.channel> | null>(null)
+  const collaboratorsRef = useRef<Collaborator[]>([])
   const localMessageCounter = useRef(0)
   const threadsRef = useRef(episodeThreads)
 
@@ -112,6 +114,7 @@ function Collaboration() {
   ), [activeEpisode])
 
   useEffect(() => { threadsRef.current = episodeThreads }, [episodeThreads])
+  useEffect(() => { collaboratorsRef.current = collaborators }, [collaborators])
 
   const createLocalMessageId = () => {
     localMessageCounter.current += 1
@@ -220,7 +223,7 @@ function Collaboration() {
         payload => {
           const row = (payload as RealtimePostgresInsertPayload<MessageRow>).new
           if (row.sender_id === user.id) return
-          const sender = collaborators.find(c => c.id === row.sender_id)
+          const sender = collaboratorsRef.current.find(c => c.id === row.sender_id)
           const senderName = sender?.name ?? row.sender_id?.slice(0, 8)
           const msg: Message = {
             id: row.id,
@@ -240,7 +243,7 @@ function Collaboration() {
       )
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [collaborators, resolvedActiveThread, user])
+  }, [resolvedActiveThread, user])
 
   // Typing indicators via Supabase Realtime Presence
   useEffect(() => {
@@ -390,7 +393,7 @@ function Collaboration() {
               </div>
             </div>
 
-            <MessageList messages={displayMessages} liveMessagesByThread={liveMessagesByThread} resolvedActiveThread={resolvedActiveThread} />
+            <MessageList messages={displayMessages} activeThreadId={resolvedActiveThread} />
 
             {showUpload && (
               <UploadModal

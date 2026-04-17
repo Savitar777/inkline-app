@@ -66,7 +66,7 @@ textarea:focus-visible,
 }
 
 .ink-stage-enter {
-  animation: ink-stage-enter 180ms ease-out;
+  animation: ink-stage-enter 160ms ease-out;
 }
 
 @keyframes ink-stage-enter {
@@ -81,7 +81,7 @@ textarea:focus-visible,
 }
 
 .ink-fade-in {
-  animation: ink-fade-in 200ms ease-out;
+  animation: ink-fade-in 160ms ease-out;
 }
 
 @keyframes ink-fade-in {
@@ -90,7 +90,7 @@ textarea:focus-visible,
 }
 
 .ink-pop-in {
-  animation: ink-pop-in 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  animation: ink-pop-in 180ms cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 
 @keyframes ink-pop-in {
@@ -135,12 +135,12 @@ textarea:focus-visible,
   50% { box-shadow: 0 0 0 4px rgba(212, 168, 67, 0.15); }
 }
 
-.ink-slide-up { animation: ink-slide-up 200ms ease-out; }
-.ink-slide-down { animation: ink-slide-down 200ms ease-out; }
-.ink-scale-in { animation: ink-scale-in 150ms ease-out; }
-.ink-toast-in { animation: ink-toast-in 300ms ease-out; }
-.ink-toast-out { animation: ink-toast-out 200ms ease-in forwards; }
-.ink-pulse-gold { animation: ink-pulse-gold 1.5s ease-in-out; }
+.ink-slide-up { animation: ink-slide-up 180ms ease-out; }
+.ink-slide-down { animation: ink-slide-down 180ms ease-out; }
+.ink-scale-in { animation: ink-scale-in 160ms ease-out; }
+.ink-toast-in { animation: ink-toast-in 200ms ease-out; }
+.ink-toast-out { animation: ink-toast-out 180ms ease-in forwards; }
+.ink-pulse-gold { animation: ink-pulse-gold 1.2s ease-in-out 1; }
 
 .ink-shimmer {
   background: linear-gradient(
@@ -150,7 +150,7 @@ textarea:focus-visible,
     var(--ink-panel) 75%
   );
   background-size: 200% 100%;
-  animation: ink-shimmer 1.5s ease-in-out infinite;
+  animation: ink-shimmer 1.2s ease-in-out infinite;
 }
 
 /* Scrollbar styling */

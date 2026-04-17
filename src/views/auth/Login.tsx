@@ -2,6 +2,7 @@ import { memo, useState } from 'react'
 import { PenLine } from '../../icons'
 import { useAuth } from '../../context/AuthContext'
 import GoogleAuthButton from '../../components/GoogleAuthButton'
+import AsyncActionLabel from '../../components/AsyncActionLabel'
 
 interface Props {
   onGoToSignup: () => void
@@ -105,7 +106,7 @@ function Login({ onGoToSignup }: Props) {
               disabled={loading || googleLoading}
               className="w-full bg-ink-gold text-ink-black font-sans font-semibold text-sm rounded-lg py-2.5 hover:bg-ink-gold-dim transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-2"
             >
-              {loading ? 'Signing in…' : 'Sign In'}
+              <AsyncActionLabel loading={loading} idleLabel="Sign In" loadingLabel="Signing in…" />
             </button>
           </form>
         </div>

@@ -6,6 +6,7 @@ import AssetSearchBar from '../assets/AssetSearchBar'
 import TagChips from '../assets/TagChips'
 import TagEditor from '../assets/TagEditor'
 import type { UploadedFile, FileCategory } from '../../types/files'
+import LoadingSurface from '../LoadingSurface'
 
 interface AssetLibraryDrawerProps {
   projectId: string
@@ -197,10 +198,12 @@ function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProp
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4">
-        {loading && (
-          <div className="flex items-center justify-center py-8">
-            <div className="w-5 h-5 border-2 border-ink-gold border-t-transparent rounded-full animate-spin" />
-          </div>
+        {loading && files.length === 0 && (
+          <LoadingSurface variant="section" label="Loading assets" lines={3} className="py-1" />
+        )}
+
+        {loading && files.length > 0 && (
+          <p className="text-[10px] uppercase tracking-[0.18em] text-ink-muted">Refreshing assets…</p>
         )}
 
         {!loading && files.length === 0 && (
@@ -210,7 +213,7 @@ function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProp
           </div>
         )}
 
-        {!loading && isFiltered ? (
+        {files.length > 0 && isFiltered ? (
           <>
             <p className="text-[10px] text-ink-muted font-sans mb-2">{files.length} file{files.length !== 1 ? 's' : ''} matching</p>
             <div className="space-y-1.5">
@@ -218,7 +221,7 @@ function AssetLibraryDrawer({ projectId, open, onClose }: AssetLibraryDrawerProp
             </div>
           </>
         ) : (
-          !loading && Object.entries(grouped).map(([category, catFiles]) => (
+          files.length > 0 && Object.entries(grouped).map(([category, catFiles]) => (
             <div key={category}>
               <p className="text-[10px] uppercase tracking-wider text-ink-muted font-sans mb-2">
                 {CATEGORY_LABELS[category as FileCategory] ?? category} ({catFiles.length})

@@ -24,7 +24,7 @@ import MobileDrawer from '../components/MobileDrawer'
 import ConfirmDialog from '../components/workspace/ConfirmDialog'
 import ScriptImportWizard from '../components/ScriptImportWizard'
 import ContextualTipBanner from '../components/ContextualTipBanner'
-import { useProject } from '../context/ProjectContext'
+import { useProjectActions, useProjectState } from '../context/ProjectContext'
 import { useWorkspace } from '../context/WorkspaceContext'
 import { useBreakpoint } from '../hooks/useBreakpoint'
 import { getEpisodeStats } from '../domain/selectors'
@@ -93,7 +93,7 @@ function AddCharacterForm({ onSave, onCancel }: { onSave: (c: Omit<Character, 'i
 /* ─── Character Card ─── */
 
 function CharacterCard({ char }: { char: Character }) {
-  const { updateCharacter, deleteCharacter } = useProject()
+  const { deleteCharacter, updateCharacter } = useProjectActions()
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState({ name: char.name, role: char.role, desc: char.desc, color: char.color })
   const [confirmDel, setConfirmDel] = useState(false)
@@ -312,14 +312,18 @@ interface Props {
 
 function ScriptEditor({ onGoToCollab }: Props = {}) {
   const {
-    project, activeEpisodeId, setActiveEpisodeId,
+    activeEpisodeId,
+    project,
+  } = useProjectState()
+  const {
+    setActiveEpisodeId,
     addEpisode, updateEpisode, deleteEpisode,
     addPage, updatePage, deletePage,
     addPanel, updatePanel, deletePanel,
     addContentBlock, updateContentBlock, deleteContentBlock,
     addCharacter, reorderPanels,
     reorderPages,
-  } = useProject()
+  } = useProjectActions()
   const { registerActionHandler, selectedFormat } = useWorkspace()
   const breakpoint = useBreakpoint()
   const isMobile = breakpoint === 'mobile'
